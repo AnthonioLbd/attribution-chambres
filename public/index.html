@@ -146,6 +146,10 @@
             gap: 10px;
         }
 
+        .member-row select {
+            flex: 1;
+        }
+
         .rooms-grid {
             background: white;
             padding: 30px;
@@ -316,11 +320,11 @@
                 return;
             }
 
-            const inputs = document.querySelectorAll('.member-input');
-            const members = Array.from(inputs).map(i => i.value.trim()).filter(m => m);
+            const selects = document.querySelectorAll('.member-select');
+            const members = Array.from(selects).map(s => s.value).filter(m => m);
 
             if (members.length === 0) {
-                alert('Veuillez entrer au moins un nom');
+                alert('Veuillez sélectionner au moins un participant');
                 return;
             }
 
@@ -355,6 +359,10 @@
         async function confirmModification() {
             const code = document.getElementById('modificationCodeInput').value;
             
+            if (!confirm('⚠️ Supprimer l\'ensemble du groupe de cette chambre et se réinscrire dans une autre ?')) {
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/modify', {
                     method: 'POST',
@@ -372,12 +380,17 @@
                 appData = result.data;
                 hideModal('modificationModal');
                 
-                // Pre-fill form
+                // Pre-fill form with selects
                 const container = document.getElementById('memberInputs');
                 container.innerHTML = result.groupMembers.map((m, i) => `
                     <div class="member-row">
-                        <input type="text" class="member-input" value="${m}">
-                        ${i > 0 ? '<button class="btn btn-danger" onclick="this.parentElement.remove()">🗑️</button>' : ''}
+                        <select class="member-select">
+                            <option value="">-- Choisir un participant --</option>
+                            ${getAvailableParticipants().map(p => `
+                                <option value="${p}" ${p === m ? 'selected' : ''}>${p}</option>
+                            `).join('')}
+                        </select>
+                        ${i > 0 ? '<button class="btn btn-danger" onclick="removeMemberRow(this)">🗑️</button>' : ''}
                     </div>
                 `).join('');
 
@@ -526,10 +539,55 @@
             const div = document.createElement('div');
             div.className = 'member-row';
             div.innerHTML = `
-                <input type="text" class="member-input" placeholder="Nom complet">
-                <button class="btn btn-danger" onclick="this.parentElement.remove()">🗑️</button>
+                <select class="member-select">
+                    <option value="">-- Choisir un participant --</option>
+                    ${getAvailableParticipants().map(p => `
+                        <option value="${p}">${p}</option>
+                    `).join('')}
+                </select>
+                <button class="btn btn-danger" onclick="removeMemberRow(this)">🗑️</button>
             `;
             container.appendChild(div);
+        }
+
+        function removeMemberRow(btn) {
+            btn.parentElement.remove();
+        }
+
+        function getAvailableParticipants() {
+            // Get all assigned participants
+            const assignedParticipants = new Set();
+            appData.rooms.forEach(room => {
+                room.occupants.forEach(occupant => assignedParticipants.add(occupant));
+            });
+
+            // Get currently selected participants in form
+            const selects = document.querySelectorAll('.member-select');
+            const selectedInForm = new Set(
+                Array.from(selects).map(s => s.value).filter(v => v)
+            );
+
+            // Return participants not assigned and not already selected in form
+            return appData.participants.filter(p => !assignedParticipants.has(p));
+        }
+
+        function updateMemberSelects() {
+            const selects = document.querySelectorAll('.member-select');
+            const available = getAvailableParticipants();
+            
+            selects.forEach(select => {
+                const currentValue = select.value;
+                const selectedValues = Array.from(selects)
+                    .map(s => s.value)
+                    .filter(v => v && v !== currentValue);
+
+                select.innerHTML = `
+                    <option value="">-- Choisir un participant --</option>
+                    ${available.filter(p => !selectedValues.includes(p)).map(p => `
+                        <option value="${p}" ${p === currentValue ? 'selected' : ''}>${p}</option>
+                    `).join('')}
+                `;
+            });
         }
 
         // Render
@@ -593,10 +651,15 @@
                         <label>Membres du groupe</label>
                         <div class="member-inputs" id="memberInputs">
                             <div class="member-row">
-                                <input type="text" class="member-input" placeholder="Nom complet">
+                                <select class="member-select" onchange="updateMemberSelects()">
+                                    <option value="">-- Choisir un participant --</option>
+                                    ${getAvailableParticipants().map(p => `
+                                        <option value="${p}">${p}</option>
+                                    `).join('')}
+                                </select>
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="addMemberInput()" style="margin-top: 10px;">
+                        <button class="btn btn-primary" onclick="addMemberInput(); updateMemberSelects();" style="margin-top: 10px;">
                             ➕ Ajouter un membre
                         </button>
                     </div>
@@ -628,7 +691,7 @@
                                             ` : ''}
                                             ${!isAdmin && room.occupants.length > 0 ? `
                                                 <button class="btn btn-warning" onclick="initiateModification('${room.id}')">
-                                                    ✏️ Modifier
+                                                    🗑️ Supprimer mon groupe
                                                 </button>
                                             ` : ''}
                                         </div>
