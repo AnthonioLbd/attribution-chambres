@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attribution de chambres</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #333;
+        }
+
+        .stats {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+            font-size: 0.75rem;
+            padding: 6px 12px;
+        }
+
+        .admin-panel {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .admin-panel.active {
+            display: block;
+        }
+
+        .admin-controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .inscription-form {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .member-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .member-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .rooms-grid {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .room-type-section {
+            margin-bottom: 40px;
+        }
+
+        .room-type-title {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .rooms-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .room-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .room-card.available {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .room-card.full {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .room-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+        }
+
+        .badge-female {
+            background: #fce7f3;
+            color: #be185d;
+        }
+
+        .badge-mixed {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+
+        .occupants-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .occupant-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .empty-bed {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.5rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="loading">⏳ Chargement...</div>
+    </div>
+
+    <script>
+        let appData = { rooms: [], participants: [], registrationCodes: {} };
+        let isAdmin = false;
+        let roomToModify = null;
+
+        // Load data
+        async function loadData() {
+            try {
+                const response = await fetch('/api/data');
+                appData = await response.json();
+                renderApp();
+            } catch (error) {
+                alert('Erreur de chargement : ' + error.message);
+            }
+        }
+
+        // Assign group
+        async function assignGroup() {
+            const roomId = document.getElementById('roomSelect').value;
+            if (!roomId) {
+                alert('Veuillez sélectionner une chambre');
+                return;
+            }
+
+            const inputs = document.querySelectorAll('.member-input');
+            const members = Array.from(inputs).map(i => i.value.trim()).filter(m => m);
+
+            if (members.length === 0) {
+                alert('Veuillez entrer au moins un nom');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId, members })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+                alert(`Inscription réussie !\n\n⚠️ NOTEZ BIEN CE CODE : ${result.code}\n\nVous en aurez besoin pour modifier votre chambre.`);
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        // Modify registration
+        async function initiateModification(roomId) {
+            roomToModify = roomId;
+            showModal('modificationModal');
+        }
+
+        async function confirmModification() {
+            const code = document.getElementById('modificationCodeInput').value;
+            
+            try {
+                const response = await fetch('/api/modify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId: roomToModify, code })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                hideModal('modificationModal');
+                
+                // Pre-fill form
+                const container = document.getElementById('memberInputs');
+                container.innerHTML = result.groupMembers.map((m, i) => `
+                    <div class="member-row">
+                        <input type="text" class="member-input" value="${m}">
+                        ${i > 0 ? '<button class="btn btn-danger" onclick="this.parentElement.remove()">🗑️</button>' : ''}
+                    </div>
+                `).join('');
+
+                renderApp();
+                alert(`Groupe retiré de la chambre n°${roomToModify}.\nVous pouvez maintenant choisir une nouvelle chambre.`);
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        // Admin functions
+        async function toggleAdminMode() {
+            if (isAdmin) {
+                isAdmin = false;
+                renderApp();
+            } else {
+                showModal('adminLoginModal');
+            }
+        }
+
+        function loginAdmin() {
+            const password = document.getElementById('adminPasswordInput').value;
+            if (password === 'adminlvp25') {
+                isAdmin = true;
+                hideModal('adminLoginModal');
+                renderApp();
+            } else {
+                alert('Code incorrect !');
+            }
+        }
+
+        async function removeOccupant(roomId, occupant) {
+            if (!confirm(`Retirer ${occupant} de cette chambre ?`)) return;
+
+            const password = prompt('Code admin :');
+            
+            try {
+                const response = await fetch('/api/admin/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId, occupant, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        async function toggleFemaleOnly(roomId) {
+            const password = prompt('Code admin :');
+            
+            try {
+                const response = await fetch('/api/admin/toggle-female', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const text = e.target.result;
+                const lines = text.split('\n').filter(line => line.trim());
+                const participants = lines.slice(1).map(line => {
+                    const cols = line.split(/[,;\t]/);
+                    return cols[0]?.trim();
+                }).filter(name => name && name.length > 0);
+                
+                const password = prompt('Code admin :');
+                
+                try {
+                    const response = await fetch('/api/admin/upload-participants', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ participants, password })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        alert(result.error);
+                        return;
+                    }
+
+                    appData = result.data;
+                    renderApp();
+                    alert(`${participants.length} participants importés !`);
+                } catch (error) {
+                    alert('Erreur : ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportResults() {
+            let csv = 'Chambre,Type,Capacité,Occupants,Femmes Seulement\n';
+            appData.rooms.forEach(room => {
+                csv += `${room.id},${room.type},${room.capacity},"${room.occupants.join('; ')}",${room.isFemaleOnly ? 'Oui' : 'Non'}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'attributions_chambres.csv';
+            a.click();
+        }
+
+        // UI helpers
+        function showModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function addMemberInput() {
+            const container = document.getElementById('memberInputs');
+            const div = document.createElement('div');
+            div.className = 'member-row';
+            div.innerHTML = `
+                <input type="text" class="member-input" placeholder="Nom complet">
+                <button class="btn btn-danger" onclick="this.parentElement.remove()">🗑️</button>
+            `;
+            container.appendChild(div);
+        }
+
+        // Render
+        function renderApp() {
+            const totalOccupied = appData.rooms.reduce((sum, r) => sum + r.occupants.length, 0);
+            const availableRooms = appData.rooms.filter(r => r.occupants.length < r.capacity);
+            
+            const grouped = {};
+            appData.rooms.forEach(room => {
+                if (!grouped[room.type]) grouped[room.type] = [];
+                grouped[room.type].push(room);
+            });
+
+            document.getElementById('app').innerHTML = `
+                <div class="header">
+                    <div class="header-content">
+                        <div>
+                            <h1>👥 Attribution de chambres</h1>
+                            <p class="stats">${totalOccupied} / 106 participants inscrits</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="toggleAdminMode()">
+                            🔐 ${isAdmin ? 'Quitter Admin' : 'Mode Admin'}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-panel ${isAdmin ? 'active' : ''}">
+                    <h2 style="margin-bottom: 15px;">Administration</h2>
+                    <div class="admin-controls">
+                        <label class="btn btn-primary" style="cursor: pointer;">
+                            📤 Importer Excel/CSV
+                            <input type="file" accept=".csv,.xlsx,.xls,.txt" onchange="handleFileUpload(event)" style="display: none;">
+                        </label>
+                        <button class="btn btn-success" onclick="exportResults()">
+                            📥 Exporter les résultats
+                        </button>
+                        <div style="padding: 12px 24px; background: white; border-radius: 8px; font-weight: 600;">
+                            ${appData.participants.length} participants chargés
+                        </div>
+                    </div>
+                </div>
+
+                ${!isAdmin ? `
+                <div class="inscription-form">
+                    <h2 style="margin-bottom: 20px;">Inscription</h2>
+                    
+                    <div class="form-group">
+                        <label>Sélectionnez une chambre disponible</label>
+                        <select id="roomSelect">
+                            <option value="">-- Choisir une chambre --</option>
+                            ${availableRooms.map(room => `
+                                <option value="${room.id}">
+                                    Chambre n°${room.id} (${room.type}) - ${room.capacity - room.occupants.length} places restantes
+                                    ${room.isFemaleOnly ? ' 🚺 FEMMES' : ''}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Membres du groupe</label>
+                        <div class="member-inputs" id="memberInputs">
+                            <div class="member-row">
+                                <input type="text" class="member-input" placeholder="Nom complet">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="addMemberInput()" style="margin-top: 10px;">
+                            ➕ Ajouter un membre
+                        </button>
+                    </div>
+
+                    <button class="btn btn-success btn-block" onclick="assignGroup()">
+                        Confirmer l'inscription
+                    </button>
+                </div>
+                ` : ''}
+
+                ${Object.entries(grouped).map(([type, rooms]) => `
+                    <div class="rooms-grid">
+                        <h2 class="room-type-title">Chambres ${type} (${rooms.length} chambres)</h2>
+                        <div class="rooms-container">
+                            ${rooms.map(room => `
+                                <div class="room-card ${room.occupants.length === room.capacity ? 'full' : 'available'}">
+                                    <div class="room-header">
+                                        <div>
+                                            <div class="room-title">Chambre n°${room.id}</div>
+                                            <div style="font-size: 0.9rem; color: #666;">${room.occupants.length} / ${room.capacity} personnes</div>
+                                        </div>
+                                        <div style="display: flex; gap: 5px; flex-direction: column;">
+                                            ${isAdmin ? `
+                                                <button class="badge ${room.isFemaleOnly ? 'badge-female' : 'badge-mixed'}" onclick="toggleFemaleOnly('${room.id}')">
+                                                    ${room.isFemaleOnly ? '🚺 FEMMES' : 'Mixte'}
+                                                </button>
+                                            ` : room.isFemaleOnly ? `
+                                                <span class="badge badge-female">🚺 FEMMES</span>
+                                            ` : ''}
+                                            ${!isAdmin && room.occupants.length > 0 ? `
+                                                <button class="btn btn-warning" onclick="initiateModification('${room.id}')">
+                                                    ✏️ Modifier
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="occupants-list">
+                                        ${room.occupants.map(occupant => `
+                                            <div class="occupant-item">
+                                                <span>${occupant}</span>
+                                                ${isAdmin ? `
+                                                    <button onclick="removeOccupant('${room.id}', '${occupant}')" style="background: none; border: none; color: #ef4444; cursor: pointer;">
+                                                        🗑️
+                                                    </button>
+                                                ` : ''}
+                                            </div>
+                                        `).join('')}
+                                        ${Array(room.capacity - room.occupants.length).fill(null).map(() => `
+                                            <div class="empty-bed">Lit disponible</div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+
+                <!-- Modals -->
+                <div class="modal" id="adminLoginModal">
+                    <div class="modal-content">
+                        <h2 style="margin-bottom: 20px;">Connexion Admin</h2>
+                        <input type="password" id="adminPasswordInput" placeholder="Code admin" style="margin-bottom: 20px;" onkeypress="if(event.key==='Enter') loginAdmin()">
+                        <div class="modal-buttons">
+                            <button class="btn btn-primary" style="flex: 1;" onclick="loginAdmin()">Connexion</button>
+                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('adminLoginModal')">Annuler</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal" id="modificationModal">
+                    <div class="modal-content">
+                        <h2 style="margin-bottom: 20px;">Modifier votre inscription</h2>
+                        <p style="color: #666; margin-bottom: 20px;">Entrez le code reçu lors de votre inscription.</p>
+                        <input type="text" id="modificationCodeInput" placeholder="CODE (ex: AB12CD)" maxlength="6" style="text-transform: uppercase; margin-bottom: 20px;" onkeypress="if(event.key==='Enter') confirmModification()">
+                        <div class="modal-buttons">
+                            <button class="btn btn-primary" style="flex: 1;" onclick="confirmModification()">Confirmer</button>
+                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('modificationModal')">Annuler</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>
