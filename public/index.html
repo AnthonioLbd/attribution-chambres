@@ -283,6 +283,42 @@
             width: 100%;
         }
 
+        .participant-list {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .participant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .participant-item:last-child {
+            border-bottom: none;
+        }
+
+        .participant-item input {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .participant-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
         .loading {
             text-align: center;
             padding: 50px;
@@ -590,6 +626,96 @@
             });
         }
 
+        // Admin participant management
+        function addParticipant() {
+            const name = prompt('Nom du nouveau participant :');
+            if (!name || !name.trim()) return;
+
+            if (appData.participants.includes(name.trim())) {
+                alert('Ce participant existe déjà !');
+                return;
+            }
+
+            appData.participants.push(name.trim());
+            appData.participants.sort();
+            saveParticipants();
+        }
+
+        function editParticipant(oldName, index) {
+            const newName = prompt('Modifier le nom :', oldName);
+            if (!newName || !newName.trim() || newName === oldName) return;
+
+            if (appData.participants.includes(newName.trim())) {
+                alert('Ce nom existe déjà !');
+                return;
+            }
+
+            // Check if participant is already assigned
+            const isAssigned = appData.rooms.some(r => r.occupants.includes(oldName));
+            if (isAssigned) {
+                if (!confirm(`⚠️ ${oldName} est déjà inscrit dans une chambre.\nLe modifier mettra à jour son inscription. Continuer ?`)) {
+                    return;
+                }
+                // Update in rooms
+                appData.rooms.forEach(room => {
+                    const idx = room.occupants.indexOf(oldName);
+                    if (idx !== -1) {
+                        room.occupants[idx] = newName.trim();
+                    }
+                });
+                // Update in registration codes
+                if (appData.registrationCodes[oldName]) {
+                    appData.registrationCodes[newName.trim()] = appData.registrationCodes[oldName];
+                    delete appData.registrationCodes[oldName];
+                }
+            }
+
+            appData.participants[index] = newName.trim();
+            appData.participants.sort();
+            saveParticipants();
+        }
+
+        function deleteParticipant(name, index) {
+            // Check if participant is already assigned
+            const isAssigned = appData.rooms.some(r => r.occupants.includes(name));
+            if (isAssigned) {
+                alert(`❌ Impossible de supprimer ${name} car il/elle est déjà inscrit(e) dans une chambre.\nRetirez-le d'abord de sa chambre.`);
+                return;
+            }
+
+            if (!confirm(`Supprimer ${name} de la liste ?`)) return;
+
+            appData.participants.splice(index, 1);
+            saveParticipants();
+        }
+
+        async function saveParticipants() {
+            const password = prompt('Code admin :');
+            
+            try {
+                const response = await fetch('/api/admin/update-participants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participants: appData.participants, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    loadData(); // Reload to restore previous state
+                    return;
+                }
+
+                appData = result.data;
+                alert('✅ Liste des participants sauvegardée !');
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+                loadData(); // Reload to restore previous state
+            }
+        }
+
         // Render
         function renderApp() {
             const totalOccupied = appData.rooms.reduce((sum, r) => sum + r.occupants.length, 0);
@@ -627,6 +753,39 @@
                         <div style="padding: 12px 24px; background: white; border-radius: 8px; font-weight: 600;">
                             ${appData.participants.length} participants chargés
                         </div>
+                    </div>
+
+                    <div class="participant-list">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">Liste des participants</h3>
+                            <button class="btn btn-primary btn-small" onclick="addParticipant()">
+                                ➕ Ajouter
+                            </button>
+                        </div>
+                        ${appData.participants.length === 0 ? `
+                            <p style="text-align: center; color: #666; padding: 20px;">
+                                Aucun participant. Importez un fichier CSV ou ajoutez-les manuellement.
+                            </p>
+                        ` : `
+                            ${appData.participants.map((p, index) => {
+                                const isAssigned = appData.rooms.some(r => r.occupants.includes(p));
+                                return `
+                                    <div class="participant-item">
+                                        <span style="${isAssigned ? 'color: #10b981; font-weight: 600;' : ''}">
+                                            ${p} ${isAssigned ? '✓ Inscrit' : ''}
+                                        </span>
+                                        <div class="participant-actions">
+                                            <button class="btn btn-primary btn-small" onclick="editParticipant('${p.replace(/'/g, "\\'")}', ${index})">
+                                                ✏️ Modifier
+                                            </button>
+                                            <button class="btn btn-danger btn-small" onclick="deleteParticipant('${p.replace(/'/g, "\\'")}', ${index})">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        `}
                     </div>
                 </div>
 
