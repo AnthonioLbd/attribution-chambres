@@ -721,11 +721,20 @@
             const totalOccupied = appData.rooms.reduce((sum, r) => sum + r.occupants.length, 0);
             const availableRooms = appData.rooms.filter(r => r.occupants.length < r.capacity);
             
+            // Custom sort order for rooms
+            const roomOrder = ['2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','25','26','C','E','G','I'];
+            const sortedRooms = [...appData.rooms].sort((a, b) => {
+                return roomOrder.indexOf(a.id) - roomOrder.indexOf(b.id);
+            });
+            
             const grouped = {};
-            appData.rooms.forEach(room => {
+            sortedRooms.forEach(room => {
                 if (!grouped[room.type]) grouped[room.type] = [];
                 grouped[room.type].push(room);
             });
+
+            // Display in specific order
+            const typeOrder = ['2 lits', '6 lits', '5 lits', '3 lits'];
 
             document.getElementById('app').innerHTML = `
                 <div class="header">
@@ -797,7 +806,10 @@
                         <label>Sélectionnez une chambre disponible</label>
                         <select id="roomSelect">
                             <option value="">-- Choisir une chambre --</option>
-                            ${availableRooms.map(room => `
+                            ${availableRooms.sort((a, b) => {
+                                const order = ['2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','25','26','C','E','G','I'];
+                                return order.indexOf(a.id) - order.indexOf(b.id);
+                            }).map(room => `
                                 <option value="${room.id}">
                                     Chambre n°${room.id} (${room.type}) - ${room.capacity - room.occupants.length} places restantes
                                     ${room.isFemaleOnly ? ' 🚺 FEMMES' : ''}
@@ -829,7 +841,10 @@
                 </div>
                 ` : ''}
 
-                ${Object.entries(grouped).map(([type, rooms]) => `
+                ${typeOrder.map(type => {
+                    if (!grouped[type]) return '';
+                    const rooms = grouped[type];
+                    return `
                     <div class="rooms-grid">
                         <h2 class="room-type-title">Chambres ${type} (${rooms.length} chambres)</h2>
                         <div class="rooms-container">
@@ -874,7 +889,8 @@
                             `).join('')}
                         </div>
                     </div>
-                `).join('')}
+                    `;
+                }).join('')}
 
                 <!-- Modals -->
                 <div class="modal" id="adminLoginModal">
