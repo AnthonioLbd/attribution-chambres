@@ -1,91 +1,99 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = 3000;
+
+// ⚠️ REMPLACEZ CES VALEURS PAR VOS CLÉS SUPABASE
+const SUPABASE_URL = https://bpfugczlnhnncpaxhhwv.supabase.co;
+const SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZnVnY3psbmhubmNwYXhoaHd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0MDMxMzEsImV4cCI6MjA4MDk3OTEzMX0.wZEW2XEOJbEfNrVDZ2fq5qHkmIrA8FQIP_wuB-9w2Yw;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
 
-// Data file
-const DATA_FILE = 'data.json';
-
-// Initialize data file if it doesn't exist
-if (!fs.existsSync(DATA_FILE)) {
-    const initialData = {
-        rooms: [
-            // Chambres de 2 lits (n°2 à n°6)
-            ...Array(5).fill(null).map((_, i) => ({
-                id: `${i+2}`,
-                capacity: 2,
-                type: '2 lits',
-                occupants: [],
-                isFemaleOnly: false
-            })),
-            // Chambres de 6 lits (n°7 à n°10)
-            ...Array(4).fill(null).map((_, i) => ({
-                id: `${i+7}`,
-                capacity: 6,
-                type: '6 lits',
-                occupants: [],
-                isFemaleOnly: false
-            })),
-            // Chambres de 5 lits (n°11 à n°19)
-            ...Array(9).fill(null).map((_, i) => ({
-                id: `${i+11}`,
-                capacity: 5,
-                type: '5 lits',
-                occupants: [],
-                isFemaleOnly: false
-            })),
-            // Chambres de 3 lits
-            { id: '20', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: '21', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: '22', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: '25', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: '26', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: 'C', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: 'E', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: 'G', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-            { id: 'I', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false }
-        ],
-        participants: [],
-        registrationCodes: {}
-    };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
-}
-
 // Helper functions
-function readData() {
-    const data = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(data);
-}
+async function getAllData() {
+    try {
+        // Get rooms
+        const { data: rooms, error: roomsError } = await supabase
+            .from('rooms')
+            .select('*')
+            .order('id');
+        
+        if (roomsError) throw roomsError;
 
-function writeData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        // Get occupants with their codes
+        const { data: occupants, error: occupantsError } = await supabase
+            .from('occupants')
+            .select('*');
+        
+        if (occupantsError) throw occupantsError;
+
+        // Get participants
+        const { data: participants, error: participantsError } = await supabase
+            .from('participants')
+            .select('name')
+            .order('name');
+        
+        if (participantsError) throw participantsError;
+
+        // Format data
+        const registrationCodes = {};
+        const roomsWithOccupants = rooms.map(room => ({
+            id: room.id,
+            capacity: room.capacity,
+            type: room.type,
+            isFemaleOnly: room.is_female_only,
+            occupants: []
+        }));
+
+        occupants.forEach(occ => {
+            const room = roomsWithOccupants.find(r => r.id === occ.room_id);
+            if (room) {
+                room.occupants.push(occ.name);
+            }
+            registrationCodes[occ.name] = {
+                code: occ.registration_code,
+                roomId: occ.room_id
+            };
+        });
+
+        return {
+            rooms: roomsWithOccupants,
+            participants: participants.map(p => p.name),
+            registrationCodes
+        };
+    } catch (error) {
+        console.error('Error getting data:', error);
+        throw error;
+    }
 }
 
 // API Routes
-app.get('/api/data', (req, res) => {
-    const data = readData();
-    res.json(data);
+app.get('/api/data', async (req, res) => {
+    try {
+        const data = await getAllData();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.post('/api/assign', (req, res) => {
+app.post('/api/assign', async (req, res) => {
     try {
         const { roomId, members } = req.body;
-        const data = readData();
         
-        const room = data.rooms.find(r => r.id === roomId);
-        if (!room) {
-            return res.status(404).json({ error: 'Chambre non trouvée' });
-        }
+        // Get current occupants
+        const { data: currentOccupants } = await supabase
+            .from('occupants')
+            .select('name, room_id');
 
         // Check duplicates
         const alreadyAssigned = members.filter(member => 
-            data.rooms.some(r => r.occupants.includes(member))
+            currentOccupants.some(o => o.name === member)
         );
 
         if (alreadyAssigned.length > 0) {
@@ -95,61 +103,77 @@ app.post('/api/assign', (req, res) => {
         }
 
         // Check capacity
-        if (room.occupants.length + members.length > room.capacity) {
+        const roomOccupants = currentOccupants.filter(o => o.room_id === roomId);
+        const { data: room } = await supabase
+            .from('rooms')
+            .select('capacity')
+            .eq('id', roomId)
+            .single();
+
+        if (roomOccupants.length + members.length > room.capacity) {
             return res.status(400).json({ 
-                error: `Pas assez de places ! (${room.capacity - room.occupants.length} places restantes)` 
+                error: `Pas assez de places ! (${room.capacity - roomOccupants.length} places restantes)` 
             });
         }
 
         // Generate code
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        // Assign
-        room.occupants.push(...members);
-        members.forEach(member => {
-            data.registrationCodes[member] = { code, roomId };
-        });
+        // Insert occupants
+        const occupantsToInsert = members.map(member => ({
+            room_id: roomId,
+            name: member,
+            registration_code: code
+        }));
 
-        writeData(data);
+        const { error: insertError } = await supabase
+            .from('occupants')
+            .insert(occupantsToInsert);
+
+        if (insertError) throw insertError;
+
+        const data = await getAllData();
         res.json({ success: true, code, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/modify', (req, res) => {
+app.post('/api/modify', async (req, res) => {
     try {
         const { roomId, code } = req.body;
-        const data = readData();
         
-        const room = data.rooms.find(r => r.id === roomId);
-        if (!room) {
-            return res.status(404).json({ error: 'Chambre non trouvée' });
-        }
+        // Find occupants with this code in this room
+        const { data: occupants, error: findError } = await supabase
+            .from('occupants')
+            .select('*')
+            .eq('room_id', roomId)
+            .eq('registration_code', code.toUpperCase());
 
-        const matchingOccupant = room.occupants.find(occupant => 
-            data.registrationCodes[occupant]?.code === code.toUpperCase()
-        );
+        if (findError) throw findError;
 
-        if (!matchingOccupant) {
+        if (!occupants || occupants.length === 0) {
             return res.status(401).json({ error: 'Code incorrect !' });
         }
 
-        const groupCode = data.registrationCodes[matchingOccupant].code;
-        const groupMembers = room.occupants.filter(occupant => 
-            data.registrationCodes[occupant]?.code === groupCode
-        );
+        const groupMembers = occupants.map(o => o.name);
 
-        room.occupants = room.occupants.filter(o => !groupMembers.includes(o));
+        // Delete all occupants with this code
+        const { error: deleteError } = await supabase
+            .from('occupants')
+            .delete()
+            .eq('registration_code', code.toUpperCase());
 
-        writeData(data);
+        if (deleteError) throw deleteError;
+
+        const data = await getAllData();
         res.json({ success: true, groupMembers, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/admin/remove', (req, res) => {
+app.post('/api/admin/remove', async (req, res) => {
     try {
         const { roomId, occupant, password } = req.body;
         
@@ -157,24 +181,22 @@ app.post('/api/admin/remove', (req, res) => {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
-        const data = readData();
-        const room = data.rooms.find(r => r.id === roomId);
-        
-        if (!room) {
-            return res.status(404).json({ error: 'Chambre non trouvée' });
-        }
+        const { error: deleteError } = await supabase
+            .from('occupants')
+            .delete()
+            .eq('room_id', roomId)
+            .eq('name', occupant);
 
-        room.occupants = room.occupants.filter(o => o !== occupant);
-        delete data.registrationCodes[occupant];
+        if (deleteError) throw deleteError;
 
-        writeData(data);
+        const data = await getAllData();
         res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/admin/toggle-female', (req, res) => {
+app.post('/api/admin/toggle-female', async (req, res) => {
     try {
         const { roomId, password } = req.body;
         
@@ -182,23 +204,29 @@ app.post('/api/admin/toggle-female', (req, res) => {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
-        const data = readData();
-        const room = data.rooms.find(r => r.id === roomId);
-        
-        if (!room) {
-            return res.status(404).json({ error: 'Chambre non trouvée' });
-        }
+        // Get current value
+        const { data: room } = await supabase
+            .from('rooms')
+            .select('is_female_only')
+            .eq('id', roomId)
+            .single();
 
-        room.isFemaleOnly = !room.isFemaleOnly;
+        // Toggle
+        const { error: updateError } = await supabase
+            .from('rooms')
+            .update({ is_female_only: !room.is_female_only })
+            .eq('id', roomId);
 
-        writeData(data);
+        if (updateError) throw updateError;
+
+        const data = await getAllData();
         res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/admin/upload-participants', (req, res) => {
+app.post('/api/admin/upload-participants', async (req, res) => {
     try {
         const { participants, password } = req.body;
         
@@ -206,21 +234,21 @@ app.post('/api/admin/upload-participants', (req, res) => {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
-        const data = readData();
-        
-        // Merge with existing participants to avoid losing manual additions
-        const existingSet = new Set(data.participants);
-        participants.forEach(p => existingSet.add(p));
-        data.participants = Array.from(existingSet).sort();
+        // Insert new participants (ignore duplicates)
+        for (const name of participants) {
+            await supabase
+                .from('participants')
+                .upsert({ name }, { onConflict: 'name' });
+        }
 
-        writeData(data);
+        const data = await getAllData();
         res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/admin/update-participants', (req, res) => {
+app.post('/api/admin/update-participants', async (req, res) => {
     try {
         const { participants, password } = req.body;
         
@@ -228,17 +256,39 @@ app.post('/api/admin/update-participants', (req, res) => {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
-        const data = readData();
-        data.participants = participants;
+        // Get current participants
+        const { data: current } = await supabase
+            .from('participants')
+            .select('name');
 
-        writeData(data);
+        const currentNames = new Set(current.map(p => p.name));
+        const newNames = new Set(participants);
+
+        // Delete removed participants
+        const toDelete = [...currentNames].filter(name => !newNames.has(name));
+        if (toDelete.length > 0) {
+            await supabase
+                .from('participants')
+                .delete()
+                .in('name', toDelete);
+        }
+
+        // Add new participants
+        const toAdd = [...newNames].filter(name => !currentNames.has(name));
+        if (toAdd.length > 0) {
+            await supabase
+                .from('participants')
+                .insert(toAdd.map(name => ({ name })));
+        }
+
+        const data = await getAllData();
         res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/admin/reset', (req, res) => {
+app.post('/api/admin/reset', async (req, res) => {
     try {
         const { password } = req.body;
         
@@ -246,46 +296,20 @@ app.post('/api/admin/reset', (req, res) => {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
-        // Reset to initial state
-        const initialData = {
-            rooms: [
-                ...Array(5).fill(null).map((_, i) => ({
-                    id: `${i+2}`,
-                    capacity: 2,
-                    type: '2 lits',
-                    occupants: [],
-                    isFemaleOnly: false
-                })),
-                ...Array(4).fill(null).map((_, i) => ({
-                    id: `${i+7}`,
-                    capacity: 6,
-                    type: '6 lits',
-                    occupants: [],
-                    isFemaleOnly: false
-                })),
-                ...Array(9).fill(null).map((_, i) => ({
-                    id: `${i+11}`,
-                    capacity: 5,
-                    type: '5 lits',
-                    occupants: [],
-                    isFemaleOnly: false
-                })),
-                { id: '20', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: '21', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: '22', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: '25', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: '26', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: 'C', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: 'E', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: 'G', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false },
-                { id: 'I', capacity: 3, type: '3 lits', occupants: [], isFemaleOnly: false }
-            ],
-            participants: [],
-            registrationCodes: {}
-        };
+        // Delete all occupants
+        await supabase.from('occupants').delete().neq('id', 0);
 
-        writeData(initialData);
-        res.json({ success: true, data: initialData });
+        // Reset all rooms to not female only
+        await supabase
+            .from('rooms')
+            .update({ is_female_only: false })
+            .neq('id', '');
+
+        // Delete all participants
+        await supabase.from('participants').delete().neq('id', 0);
+
+        const data = await getAllData();
+        res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -293,4 +317,5 @@ app.post('/api/admin/reset', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
+    console.log(`Supabase URL: ${SUPABASE_URL}`);
 });
