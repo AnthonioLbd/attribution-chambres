@@ -207,6 +207,28 @@ app.post('/api/admin/upload-participants', (req, res) => {
         }
 
         const data = readData();
+        
+        // Merge with existing participants to avoid losing manual additions
+        const existingSet = new Set(data.participants);
+        participants.forEach(p => existingSet.add(p));
+        data.participants = Array.from(existingSet).sort();
+
+        writeData(data);
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/admin/update-participants', (req, res) => {
+    try {
+        const { participants, password } = req.body;
+        
+        if (password !== 'adminlvp25') {
+            return res.status(401).json({ error: 'Code admin incorrect' });
+        }
+
+        const data = readData();
         data.participants = participants;
 
         writeData(data);
