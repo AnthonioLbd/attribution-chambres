@@ -45,22 +45,27 @@
             align-items: center;
         }
 
-        .flag-btn {
+        .lang-btn {
             cursor: pointer;
-            font-size: 2rem;
-            padding: 5px;
-            border: 2px solid transparent;
-            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            color: #666;
             transition: all 0.3s;
         }
 
-        .flag-btn:hover {
-            transform: scale(1.1);
+        .lang-btn:hover {
+            transform: scale(1.05);
+            border-color: #667eea;
         }
 
-        .flag-btn.active {
+        .lang-btn.active {
             border-color: #667eea;
-            background: #f0f4ff;
+            background: #667eea;
+            color: white;
         }
 
         h1 {
@@ -563,7 +568,7 @@
 
         function switchLanguage(lang) {
             currentLang = lang;
-            document.querySelectorAll('.flag-btn').forEach(btn => {
+            document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             document.querySelector(`[data-lang="${lang}"]`).classList.add('active');
@@ -894,40 +899,82 @@
             const isAssigned = appData.rooms.some(r => r.occupants.includes(oldName));
             if (isAssigned) {
                 if (!confirm(currentLang === 'fr'
-                    ? `⚠️ ${oldName} est déjà inscrit dans une chambre.\nLe modifier mettra à jour son inscription. Continuer ?`
-                    : `⚠️ ${oldName} is already registered in a room.\nModifying will update their registration. Continue?`)) {
+                    ? `⚠️ ${oldName} est déjà inscrit dans une chambre.\nLe modifier mettra à jour son inscription automatiquement. Continuer ?`
+                    : `⚠️ ${oldName} is already registered in a room.\nModifying will update their registration automatically. Continue?`)) {
                     return;
-                }
-                appData.rooms.forEach(room => {
-                    const idx = room.occupants.indexOf(oldName);
-                    if (idx !== -1) {
-                        room.occupants[idx] = newName.trim();
-                    }
-                });
-                if (appData.registrationCodes[oldName]) {
-                    appData.registrationCodes[newName.trim()] = appData.registrationCodes[oldName];
-                    delete appData.registrationCodes[oldName];
                 }
             }
 
-            appData.participants[index] = newName.trim();
-            appData.participants.sort();
-            saveParticipants();
+            editParticipantInDB(oldName, newName.trim());
+        }
+
+        async function editParticipantInDB(oldName, newName) {
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/edit-participant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldName, newName, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    loadData();
+                    return;
+                }
+
+                appData = result.data;
+                alert(currentLang === 'fr' ? '✅ Participant modifié !' : '✅ Participant updated!');
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+                loadData();
+            }
         }
 
         function deleteParticipant(name, index) {
             const isAssigned = appData.rooms.some(r => r.occupants.includes(name));
+            
+            let confirmMsg = currentLang === 'fr' ? `Supprimer ${name} de la liste ?` : `Delete ${name} from the list?`;
             if (isAssigned) {
-                alert(currentLang === 'fr'
-                    ? `❌ Impossible de supprimer ${name} car il/elle est déjà inscrit(e) dans une chambre.\nRetirez-le d'abord de sa chambre.`
-                    : `❌ Cannot delete ${name} because they are already registered in a room.\nRemove them from their room first.`);
-                return;
+                confirmMsg = currentLang === 'fr'
+                    ? `⚠️ ${name} est inscrit(e) dans une chambre.\n\nSupprimer le/la de la liste le/la retirera automatiquement de sa chambre.\n\nContinuer ?`
+                    : `⚠️ ${name} is registered in a room.\n\nDeleting from the list will automatically remove them from their room.\n\nContinue?`;
             }
 
-            if (!confirm(currentLang === 'fr' ? `Supprimer ${name} de la liste ?` : `Delete ${name} from the list?`)) return;
+            if (!confirm(confirmMsg)) return;
 
-            appData.participants.splice(index, 1);
-            saveParticipants();
+            deleteParticipantFromDB(name);
+        }
+
+        async function deleteParticipantFromDB(name) {
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/delete-participant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    loadData();
+                    return;
+                }
+
+                appData = result.data;
+                alert(currentLang === 'fr' ? '✅ Participant supprimé !' : '✅ Participant deleted!');
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+                loadData();
+            }
         }
 
         async function clearAllParticipants() {
@@ -985,6 +1032,37 @@
             } catch (error) {
                 alert('Erreur : ' + error.message);
                 loadData();
+            }
+        }
+
+        async function clearRoom(roomId) {
+            if (!confirm(currentLang === 'fr'
+                ? `⚠️ Vider complètement la chambre n°${roomId} ?\n\nTous les occupants seront retirés.`
+                : `⚠️ Clear room #${roomId} completely?\n\nAll occupants will be removed.`)) {
+                return;
+            }
+
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/clear-room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+                alert(currentLang === 'fr' ? '✅ Chambre vidée !' : '✅ Room cleared!');
+            } catch (error) {
+                alert('Erreur : ' + error.message);
             }
         }
 
@@ -1081,6 +1159,27 @@
             
             html += '</tbody></table></div>';
 
+            // Quick add section
+            html += '<div style="margin-bottom: 30px; padding: 20px; background: #f0f4ff; border-radius: 8px;">';
+            html += '<h3 style="margin-bottom: 15px;">' + (currentLang === 'fr' ? '⚡ Ajout rapide de chambres' : '⚡ Quick add rooms') + '</h3>';
+            html += '<p style="margin-bottom: 15px; color: #666; font-size: 0.9rem;">' + (currentLang === 'fr' 
+                ? 'Générez automatiquement des chambres avec numérotation provisoire (modifiable ensuite)'
+                : 'Automatically generate rooms with temporary numbering (editable afterwards)') + '</p>';
+            html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
+            
+            [2, 3, 4, 5, 6, 8].forEach(capacity => {
+                html += `
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <label style="font-size: 0.9rem; font-weight: 600;">${currentLang === 'fr' ? 'Chambres de' : 'Rooms of'} ${capacity} ${currentLang === 'fr' ? 'lits' : 'beds'}</label>
+                        <input type="number" id="quickAdd${capacity}" min="0" value="0" style="width: 100%; padding: 8px;">
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            html += '<button class="btn btn-success" onclick="quickAddRooms()" style="margin-top: 15px; width: 100%;">' + (currentLang === 'fr' ? '➕ Générer ces chambres' : '➕ Generate these rooms') + '</button>';
+            html += '</div>';
+
             html += '<div style="margin-bottom: 20px;"><h3>' + (currentLang === 'fr' ? 'Modifier la configuration :' : 'Edit configuration:') + '</h3>';
             html += '<div id="roomConfigList">';
             
@@ -1096,10 +1195,70 @@
             });
             
             html += '</div>';
+            html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
             html += '<button class="btn btn-primary" onclick="addRoomConfigRow()">' + (currentLang === 'fr' ? '➕ Ajouter une chambre' : '➕ Add a room') + '</button>';
+            html += '<button class="btn btn-danger" onclick="clearAllRooms()">' + (currentLang === 'fr' ? '🗑️ Supprimer toutes les chambres' : '🗑️ Delete all rooms') + '</button>';
+            html += '</div>';
             html += '</div>';
 
             return html;
+        }
+
+        function quickAddRooms() {
+            const capacities = [2, 3, 4, 5, 6, 8];
+            let newRooms = [];
+            let nextRoomNumber = 1;
+
+            // Get existing max room number
+            appData.rooms.forEach(room => {
+                const num = parseInt(room.id);
+                if (!isNaN(num) && num >= nextRoomNumber) {
+                    nextRoomNumber = num + 1;
+                }
+            });
+
+            capacities.forEach(capacity => {
+                const count = parseInt(document.getElementById(`quickAdd${capacity}`).value) || 0;
+                for (let i = 0; i < count; i++) {
+                    newRooms.push({
+                        id: `${nextRoomNumber}`,
+                        capacity: capacity,
+                        type: `${capacity} lits`
+                    });
+                    nextRoomNumber++;
+                }
+            });
+
+            if (newRooms.length === 0) {
+                alert(currentLang === 'fr' ? 'Aucune chambre à ajouter' : 'No rooms to add');
+                return;
+            }
+
+            if (!confirm(currentLang === 'fr'
+                ? `Ajouter ${newRooms.length} nouvelles chambres ?\n\nNumérotation provisoire de ${newRooms[0].id} à ${newRooms[newRooms.length-1].id}`
+                : `Add ${newRooms.length} new rooms?\n\nTemporary numbering from ${newRooms[0].id} to ${newRooms[newRooms.length-1].id}`)) {
+                return;
+            }
+
+            // Add to existing rooms
+            const allRooms = [...appData.rooms, ...newRooms];
+            updateRoomsInDB(allRooms);
+        }
+
+        function clearAllRooms() {
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ ATTENTION : Supprimer TOUTES les chambres ?\n\nCette action supprimera aussi toutes les inscriptions !\n\nÊtes-vous absolument sûr ?'
+                : '⚠️ WARNING: Delete ALL rooms?\n\nThis will also delete all registrations!\n\nAre you absolutely sure?')) {
+                return;
+            }
+
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ DERNIÈRE CONFIRMATION : Cette action est irréversible !'
+                : '⚠️ FINAL CONFIRMATION: This action is irreversible!')) {
+                return;
+            }
+
+            updateRoomsInDB([]);
         }
 
         function addRoomConfigRow() {
@@ -1156,8 +1315,8 @@
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center;">
                             <div class="language-switcher">
-                                <span class="flag-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" onclick="switchLanguage('fr')" title="Français">🇫🇷</span>
-                                <span class="flag-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" onclick="switchLanguage('en')" title="English">🇬🇧</span>
+                                <button class="lang-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" onclick="switchLanguage('fr')">FR</button>
+                                <button class="lang-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" onclick="switchLanguage('en')">EN</button>
                             </div>
                             <button class="btn btn-primary" onclick="toggleAdminMode()">
                                 🔐 ${isAdmin ? t('quitAdmin') : t('adminMode')}
@@ -1354,6 +1513,11 @@
                                         </div>
                                     </div>
                                     <div class="occupants-list">
+                                        ${isAdmin && room.occupants.length > 0 ? `
+                                            <button class="btn btn-danger btn-small" onclick="clearRoom('${room.id}')" style="margin-bottom: 10px; width: 100%;">
+                                                🗑️ ${currentLang === 'fr' ? 'Vider la chambre' : 'Clear room'}
+                                            </button>
+                                        ` : ''}
                                         ${room.occupants.map(occupant => `
                                             <div class="occupant-item">
                                                 <span>${occupant}</span>
