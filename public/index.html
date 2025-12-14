@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attribution de chambres</title>
+    <title>Attribution de chambres / Room Assignment</title>
     <style>
         * {
             margin: 0;
@@ -37,6 +37,30 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 20px;
+        }
+
+        .language-switcher {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .flag-btn {
+            cursor: pointer;
+            font-size: 2rem;
+            padding: 5px;
+            border: 2px solid transparent;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .flag-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .flag-btn.active {
+            border-color: #667eea;
+            background: #f0f4ff;
         }
 
         h1 {
@@ -97,10 +121,54 @@
             display: block;
         }
 
+        .admin-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
         .admin-controls {
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .participant-list {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .participant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .participant-item:last-child {
+            border-bottom: none;
+        }
+
+        .participant-item input {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .participant-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
         }
 
         .inscription-form {
@@ -150,6 +218,28 @@
             flex: 1;
         }
 
+        .gender-preference {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .gender-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .info-box {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.9rem;
+            color: #92400e;
+            margin-top: 10px;
+        }
+
         .rooms-grid {
             background: white;
             padding: 30px;
@@ -193,6 +283,16 @@
             border-color: #d1d5db;
         }
 
+        .room-card.female-pref {
+            background: #fce7f3;
+            border-color: #f9a8d4;
+        }
+
+        .room-card.male-pref {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
         .room-header {
             display: flex;
             justify-content: space-between;
@@ -222,6 +322,11 @@
         .badge-mixed {
             background: #e5e7eb;
             color: #6b7280;
+        }
+
+        .badge-male {
+            background: #dbeafe;
+            color: #1e40af;
         }
 
         .occupants-list {
@@ -269,8 +374,10 @@
             background: white;
             padding: 30px;
             border-radius: 15px;
-            max-width: 500px;
+            max-width: 700px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
         .modal-buttons {
@@ -283,59 +390,185 @@
             width: 100%;
         }
 
-        .participant-list {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .participant-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .participant-item:last-child {
-            border-bottom: none;
-        }
-
-        .participant-item input {
-            flex: 1;
-            margin-right: 10px;
-        }
-
-        .participant-actions {
-            display: flex;
-            gap: 5px;
-        }
-
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 0.85rem;
-        }
-
         .loading {
             text-align: center;
             padding: 50px;
             font-size: 1.5rem;
             color: white;
         }
+
+        .room-config-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .room-config-item input {
+            width: auto;
+            flex: 1;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            color: #92400e;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border: 1px solid #6ee7b7;
+            color: #065f46;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table th, table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        table th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div id="app" class="container">
-        <div class="loading">⏳ Chargement...</div>
+        <div class="loading">⏳ <span class="loading-text">Chargement...</span></div>
     </div>
 
     <script>
-        let appData = { rooms: [], participants: [], registrationCodes: {} };
+        let appData = { rooms: [], participants: [], registrationCodes: {}, totalCapacity: 0 };
         let isAdmin = false;
         let roomToModify = null;
+        let currentLang = 'fr';
+
+        const translations = {
+            fr: {
+                title: 'Attribution de chambres',
+                adminMode: 'Mode Admin',
+                quitAdmin: 'Quitter Admin',
+                participantsRegistered: 'participants inscrits',
+                loading: 'Chargement...',
+                administration: 'Administration',
+                importCSV: 'Importer Excel/CSV',
+                exportResults: 'Exporter les résultats',
+                participantsLoaded: 'participants chargés',
+                totalCapacity: 'Capacité totale',
+                beds: 'lits',
+                participantsList: 'Liste des participants',
+                add: 'Ajouter',
+                noParticipants: 'Aucun participant. Importez un fichier CSV ou ajoutez-les manuellement.',
+                registered: 'Inscrit',
+                modify: 'Modifier',
+                delete: 'Supprimer',
+                clearAll: 'Effacer toute la liste',
+                roomManagement: 'Gestion des chambres',
+                editRooms: 'Modifier les chambres',
+                inscription: 'Inscription',
+                selectRoom: 'Sélectionnez une chambre disponible',
+                chooseRoom: '-- Choisir une chambre --',
+                room: 'Chambre n°',
+                placesRemaining: 'places restantes',
+                groupMembers: 'Membres du groupe',
+                chooseParticipant: '-- Choisir un participant --',
+                addMember: 'Ajouter un membre',
+                roomPreference: 'Préférence de chambre (première réservation uniquement)',
+                mixed: 'Mixte',
+                femalesOnly: 'Femmes uniquement',
+                malesOnly: 'Hommes uniquement',
+                preferenceInfo: 'Note : Cette préférence peut ne pas être respectée selon le nombre d\'hommes et de femmes du voyage et la capacité des chambres.',
+                confirmInscription: 'Confirmer l\'inscription',
+                rooms: 'Chambres',
+                roomsCount: 'chambres',
+                people: 'personnes',
+                deleteMyGroup: 'Supprimer mon groupe',
+                availableBed: 'Lit disponible',
+                adminLogin: 'Connexion Admin',
+                adminCode: 'Code admin',
+                login: 'Connexion',
+                cancel: 'Annuler',
+                modifyInscription: 'Modifier votre inscription',
+                enterCode: 'Entrez le code reçu lors de votre inscription.',
+                codeExample: 'CODE (ex: AB12CD)',
+                confirm: 'Confirmer'
+            },
+            en: {
+                title: 'Room Assignment',
+                adminMode: 'Admin Mode',
+                quitAdmin: 'Quit Admin',
+                participantsRegistered: 'participants registered',
+                loading: 'Loading...',
+                administration: 'Administration',
+                importCSV: 'Import Excel/CSV',
+                exportResults: 'Export results',
+                participantsLoaded: 'participants loaded',
+                totalCapacity: 'Total capacity',
+                beds: 'beds',
+                participantsList: 'Participants list',
+                add: 'Add',
+                noParticipants: 'No participants. Import a CSV file or add them manually.',
+                registered: 'Registered',
+                modify: 'Edit',
+                delete: 'Delete',
+                clearAll: 'Clear entire list',
+                roomManagement: 'Room Management',
+                editRooms: 'Edit rooms',
+                inscription: 'Registration',
+                selectRoom: 'Select an available room',
+                chooseRoom: '-- Choose a room --',
+                room: 'Room #',
+                placesRemaining: 'places remaining',
+                groupMembers: 'Group members',
+                chooseParticipant: '-- Choose a participant --',
+                addMember: 'Add member',
+                roomPreference: 'Room preference (first reservation only)',
+                mixed: 'Mixed',
+                femalesOnly: 'Females only',
+                malesOnly: 'Males only',
+                preferenceInfo: 'Note: This preference may not be respected depending on the number of men and women in the trip and room capacity.',
+                confirmInscription: 'Confirm registration',
+                rooms: 'Rooms',
+                roomsCount: 'rooms',
+                people: 'people',
+                deleteMyGroup: 'Delete my group',
+                availableBed: 'Available bed',
+                adminLogin: 'Admin Login',
+                adminCode: 'Admin code',
+                login: 'Login',
+                cancel: 'Cancel',
+                modifyInscription: 'Modify your registration',
+                enterCode: 'Enter the code received during your registration.',
+                codeExample: 'CODE (e.g.: AB12CD)',
+                confirm: 'Confirm'
+            }
+        };
+
+        function t(key) {
+            return translations[currentLang][key] || key;
+        }
+
+        function switchLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.flag-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-lang="${lang}"]`).classList.add('active');
+            renderApp();
+        }
 
         // Load data
         async function loadData() {
@@ -352,7 +585,7 @@
         async function assignGroup() {
             const roomId = document.getElementById('roomSelect').value;
             if (!roomId) {
-                alert('Veuillez sélectionner une chambre');
+                alert(currentLang === 'fr' ? 'Veuillez sélectionner une chambre' : 'Please select a room');
                 return;
             }
 
@@ -360,15 +593,17 @@
             const members = Array.from(selects).map(s => s.value).filter(m => m);
 
             if (members.length === 0) {
-                alert('Veuillez sélectionner au moins un participant');
+                alert(currentLang === 'fr' ? 'Veuillez sélectionner au moins un participant' : 'Please select at least one participant');
                 return;
             }
+
+            const genderPreference = document.querySelector('input[name="genderPref"]:checked')?.value || 'mixed';
 
             try {
                 const response = await fetch('/api/assign', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roomId, members })
+                    body: JSON.stringify({ roomId, members, genderPreference })
                 });
 
                 const result = await response.json();
@@ -380,13 +615,15 @@
 
                 appData = result.data;
                 renderApp();
-                alert(`Inscription réussie !\n\n⚠️ NOTEZ BIEN CE CODE : ${result.code}\n\nVous en aurez besoin pour modifier votre chambre.`);
+                alert(currentLang === 'fr' 
+                    ? `Inscription réussie !\n\n⚠️ NOTEZ BIEN CE CODE : ${result.code}\n\nVous en aurez besoin pour modifier votre chambre.`
+                    : `Registration successful!\n\n⚠️ NOTE THIS CODE: ${result.code}\n\nYou will need it to modify your room.`);
             } catch (error) {
                 alert('Erreur : ' + error.message);
             }
         }
 
-        // Modify registration
+        // Modification
         async function initiateModification(roomId) {
             roomToModify = roomId;
             showModal('modificationModal');
@@ -395,7 +632,9 @@
         async function confirmModification() {
             const code = document.getElementById('modificationCodeInput').value;
             
-            if (!confirm('⚠️ Supprimer l\'ensemble du groupe de cette chambre et se réinscrire dans une autre ?')) {
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ Supprimer l\'ensemble du groupe de cette chambre et se réinscrire dans une autre ?'
+                : '⚠️ Delete the entire group from this room and re-register in another?')) {
                 return;
             }
             
@@ -416,12 +655,11 @@
                 appData = result.data;
                 hideModal('modificationModal');
                 
-                // Pre-fill form with selects
                 const container = document.getElementById('memberInputs');
                 container.innerHTML = result.groupMembers.map((m, i) => `
                     <div class="member-row">
-                        <select class="member-select">
-                            <option value="">-- Choisir un participant --</option>
+                        <select class="member-select" onchange="updateMemberSelects()">
+                            <option value="">-- ${t('chooseParticipant')} --</option>
                             ${getAvailableParticipants().map(p => `
                                 <option value="${p}" ${p === m ? 'selected' : ''}>${p}</option>
                             `).join('')}
@@ -431,7 +669,9 @@
                 `).join('');
 
                 renderApp();
-                alert(`Groupe retiré de la chambre n°${roomToModify}.\nVous pouvez maintenant choisir une nouvelle chambre.`);
+                alert(currentLang === 'fr'
+                    ? `Groupe retiré de la chambre n°${roomToModify}.\nVous pouvez maintenant choisir une nouvelle chambre.`
+                    : `Group removed from room #${roomToModify}.\nYou can now choose a new room.`);
             } catch (error) {
                 alert('Erreur : ' + error.message);
             }
@@ -454,14 +694,14 @@
                 hideModal('adminLoginModal');
                 renderApp();
             } else {
-                alert('Code incorrect !');
+                alert(currentLang === 'fr' ? 'Code incorrect !' : 'Incorrect code!');
             }
         }
 
         async function removeOccupant(roomId, occupant) {
-            if (!confirm(`Retirer ${occupant} de cette chambre ?`)) return;
+            if (!confirm(currentLang === 'fr' ? `Retirer ${occupant} de cette chambre ?` : `Remove ${occupant} from this room?`)) return;
 
-            const password = prompt('Code admin :');
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
             
             try {
                 const response = await fetch('/api/admin/remove', {
@@ -485,7 +725,7 @@
         }
 
         async function toggleFemaleOnly(roomId) {
-            const password = prompt('Code admin :');
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
             
             try {
                 const response = await fetch('/api/admin/toggle-female', {
@@ -521,7 +761,14 @@
                     return cols[0]?.trim();
                 }).filter(name => name && name.length > 0);
                 
-                const password = prompt('Code admin :');
+                // Check capacity
+                if (participants.length > appData.totalCapacity) {
+                    alert(currentLang === 'fr'
+                        ? `⚠️ ATTENTION : Vous importez ${participants.length} participants mais la capacité totale est de ${appData.totalCapacity} lits.\n\nIl manque ${participants.length - appData.totalCapacity} places !`
+                        : `⚠️ WARNING: You are importing ${participants.length} participants but the total capacity is ${appData.totalCapacity} beds.\n\n${participants.length - appData.totalCapacity} places are missing!`);
+                }
+
+                const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
                 
                 try {
                     const response = await fetch('/api/admin/upload-participants', {
@@ -539,7 +786,9 @@
 
                     appData = result.data;
                     renderApp();
-                    alert(`${participants.length} participants importés !`);
+                    alert(currentLang === 'fr' 
+                        ? `${participants.length} participants importés !` 
+                        : `${participants.length} participants imported!`);
                 } catch (error) {
                     alert('Erreur : ' + error.message);
                 }
@@ -548,9 +797,9 @@
         }
 
         function exportResults() {
-            let csv = 'Chambre,Type,Capacité,Occupants,Femmes Seulement\n';
+            let csv = 'Chambre,Type,Capacité,Occupants,Femmes Seulement,Préférence\n';
             appData.rooms.forEach(room => {
-                csv += `${room.id},${room.type},${room.capacity},"${room.occupants.join('; ')}",${room.isFemaleOnly ? 'Oui' : 'Non'}\n`;
+                csv += `${room.id},${room.type},${room.capacity},"${room.occupants.join('; ')}",${room.isFemaleOnly ? 'Oui' : 'Non'},${room.genderPreference}\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -575,8 +824,8 @@
             const div = document.createElement('div');
             div.className = 'member-row';
             div.innerHTML = `
-                <select class="member-select">
-                    <option value="">-- Choisir un participant --</option>
+                <select class="member-select" onchange="updateMemberSelects()">
+                    <option value="">-- ${t('chooseParticipant')} --</option>
                     ${getAvailableParticipants().map(p => `
                         <option value="${p}">${p}</option>
                     `).join('')}
@@ -588,22 +837,14 @@
 
         function removeMemberRow(btn) {
             btn.parentElement.remove();
+            updateMemberSelects();
         }
 
         function getAvailableParticipants() {
-            // Get all assigned participants
             const assignedParticipants = new Set();
             appData.rooms.forEach(room => {
                 room.occupants.forEach(occupant => assignedParticipants.add(occupant));
             });
-
-            // Get currently selected participants in form
-            const selects = document.querySelectorAll('.member-select');
-            const selectedInForm = new Set(
-                Array.from(selects).map(s => s.value).filter(v => v)
-            );
-
-            // Return participants not assigned and not already selected in form
             return appData.participants.filter(p => !assignedParticipants.has(p));
         }
 
@@ -618,7 +859,7 @@
                     .filter(v => v && v !== currentValue);
 
                 select.innerHTML = `
-                    <option value="">-- Choisir un participant --</option>
+                    <option value="">-- ${t('chooseParticipant')} --</option>
                     ${available.filter(p => !selectedValues.includes(p)).map(p => `
                         <option value="${p}" ${p === currentValue ? 'selected' : ''}>${p}</option>
                     `).join('')}
@@ -628,11 +869,11 @@
 
         // Admin participant management
         function addParticipant() {
-            const name = prompt('Nom du nouveau participant :');
+            const name = prompt(currentLang === 'fr' ? 'Nom du nouveau participant :' : 'New participant name:');
             if (!name || !name.trim()) return;
 
             if (appData.participants.includes(name.trim())) {
-                alert('Ce participant existe déjà !');
+                alert(currentLang === 'fr' ? 'Ce participant existe déjà !' : 'This participant already exists!');
                 return;
             }
 
@@ -642,28 +883,27 @@
         }
 
         function editParticipant(oldName, index) {
-            const newName = prompt('Modifier le nom :', oldName);
+            const newName = prompt(currentLang === 'fr' ? 'Modifier le nom :' : 'Edit name:', oldName);
             if (!newName || !newName.trim() || newName === oldName) return;
 
             if (appData.participants.includes(newName.trim())) {
-                alert('Ce nom existe déjà !');
+                alert(currentLang === 'fr' ? 'Ce nom existe déjà !' : 'This name already exists!');
                 return;
             }
 
-            // Check if participant is already assigned
             const isAssigned = appData.rooms.some(r => r.occupants.includes(oldName));
             if (isAssigned) {
-                if (!confirm(`⚠️ ${oldName} est déjà inscrit dans une chambre.\nLe modifier mettra à jour son inscription. Continuer ?`)) {
+                if (!confirm(currentLang === 'fr'
+                    ? `⚠️ ${oldName} est déjà inscrit dans une chambre.\nLe modifier mettra à jour son inscription. Continuer ?`
+                    : `⚠️ ${oldName} is already registered in a room.\nModifying will update their registration. Continue?`)) {
                     return;
                 }
-                // Update in rooms
                 appData.rooms.forEach(room => {
                     const idx = room.occupants.indexOf(oldName);
                     if (idx !== -1) {
                         room.occupants[idx] = newName.trim();
                     }
                 });
-                // Update in registration codes
                 if (appData.registrationCodes[oldName]) {
                     appData.registrationCodes[newName.trim()] = appData.registrationCodes[oldName];
                     delete appData.registrationCodes[oldName];
@@ -676,21 +916,53 @@
         }
 
         function deleteParticipant(name, index) {
-            // Check if participant is already assigned
             const isAssigned = appData.rooms.some(r => r.occupants.includes(name));
             if (isAssigned) {
-                alert(`❌ Impossible de supprimer ${name} car il/elle est déjà inscrit(e) dans une chambre.\nRetirez-le d'abord de sa chambre.`);
+                alert(currentLang === 'fr'
+                    ? `❌ Impossible de supprimer ${name} car il/elle est déjà inscrit(e) dans une chambre.\nRetirez-le d'abord de sa chambre.`
+                    : `❌ Cannot delete ${name} because they are already registered in a room.\nRemove them from their room first.`);
                 return;
             }
 
-            if (!confirm(`Supprimer ${name} de la liste ?`)) return;
+            if (!confirm(currentLang === 'fr' ? `Supprimer ${name} de la liste ?` : `Delete ${name} from the list?`)) return;
 
             appData.participants.splice(index, 1);
             saveParticipants();
         }
 
+        async function clearAllParticipants() {
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ ATTENTION : Êtes-vous sûr de vouloir effacer toute la liste des participants ?\n\nCette action est irréversible !'
+                : '⚠️ WARNING: Are you sure you want to clear the entire participants list?\n\nThis action is irreversible!')) {
+                return;
+            }
+
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/clear-participants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+                alert(currentLang === 'fr' ? 'Liste effacée !' : 'List cleared!');
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
         async function saveParticipants() {
-            const password = prompt('Code admin :');
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
             
             try {
                 const response = await fetch('/api/admin/update-participants', {
@@ -703,17 +975,145 @@
                 
                 if (!response.ok) {
                     alert(result.error);
-                    loadData(); // Reload to restore previous state
+                    loadData();
                     return;
                 }
 
                 appData = result.data;
-                alert('✅ Liste des participants sauvegardée !');
+                alert(currentLang === 'fr' ? '✅ Liste des participants sauvegardée !' : '✅ Participants list saved!');
                 renderApp();
             } catch (error) {
                 alert('Erreur : ' + error.message);
-                loadData(); // Reload to restore previous state
+                loadData();
             }
+        }
+
+        // Room configuration
+        function showRoomConfig() {
+            showModal('roomConfigModal');
+        }
+
+        function saveRoomConfig() {
+            const inputs = document.querySelectorAll('.room-config-row');
+            const rooms = [];
+            const roomIds = new Set();
+
+            for (let input of inputs) {
+                const id = input.querySelector('.room-id').value.trim();
+                const capacity = parseInt(input.querySelector('.room-capacity').value);
+                const type = input.querySelector('.room-type').value;
+
+                if (!id) {
+                    alert(currentLang === 'fr' ? 'Tous les numéros de chambre doivent être renseignés' : 'All room numbers must be filled');
+                    return;
+                }
+
+                if (roomIds.has(id)) {
+                    alert(currentLang === 'fr' ? `Le numéro de chambre "${id}" est utilisé plusieurs fois !` : `Room number "${id}" is used multiple times!`);
+                    return;
+                }
+
+                roomIds.add(id);
+
+                if (!capacity || capacity < 1) {
+                    alert(currentLang === 'fr' ? 'Toutes les capacités doivent être supérieures à 0' : 'All capacities must be greater than 0');
+                    return;
+                }
+
+                rooms.push({ id, capacity, type: type || `${capacity} lits` });
+            }
+
+            if (rooms.length === 0) {
+                alert(currentLang === 'fr' ? 'Au moins une chambre est nécessaire' : 'At least one room is required');
+                return;
+            }
+
+            if (!confirm(currentLang === 'fr'
+                ? `⚠️ Vous allez remplacer la configuration des chambres.\n\n${rooms.length} chambres, capacité totale: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} lits.\n\nContinuer ?`
+                : `⚠️ You will replace the room configuration.\n\n${rooms.length} rooms, total capacity: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} beds.\n\nContinue?`)) {
+                return;
+            }
+
+            updateRoomsInDB(rooms);
+        }
+
+        async function updateRoomsInDB(rooms) {
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/update-rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rooms, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                hideModal('roomConfigModal');
+                renderApp();
+                alert(currentLang === 'fr' ? '✅ Configuration des chambres mise à jour !' : '✅ Room configuration updated!');
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        function generateRoomConfigHTML() {
+            const grouped = {};
+            appData.rooms.forEach(room => {
+                const key = `${room.capacity} lits`;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(room.id);
+            });
+
+            let html = '<div style="margin-bottom: 20px;">';
+            html += '<h3 style="margin-bottom: 10px;">' + (currentLang === 'fr' ? 'Configuration actuelle :' : 'Current configuration:') + '</h3>';
+            html += '<table><thead><tr><th>' + (currentLang === 'fr' ? 'Type' : 'Type') + '</th><th>' + (currentLang === 'fr' ? 'Nombre' : 'Count') + '</th><th>' + (currentLang === 'fr' ? 'Numéros' : 'Numbers') + '</th></tr></thead><tbody>';
+            
+            Object.entries(grouped).forEach(([type, ids]) => {
+                html += `<tr><td>${type}</td><td>${ids.length}</td><td>${ids.join(', ')}</td></tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+
+            html += '<div style="margin-bottom: 20px;"><h3>' + (currentLang === 'fr' ? 'Modifier la configuration :' : 'Edit configuration:') + '</h3>';
+            html += '<div id="roomConfigList">';
+            
+            appData.rooms.forEach(room => {
+                html += `
+                    <div class="room-config-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                        <input type="text" class="room-id" value="${room.id}" placeholder="${currentLang === 'fr' ? 'N° chambre' : 'Room #'}" style="width: 100px;">
+                        <input type="number" class="room-capacity" value="${room.capacity}" min="1" placeholder="${currentLang === 'fr' ? 'Capacité' : 'Capacity'}" style="width: 100px;">
+                        <input type="text" class="room-type" value="${room.type}" placeholder="${currentLang === 'fr' ? 'Type (optionnel)' : 'Type (optional)'}" style="flex: 1;">
+                        <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            html += '<button class="btn btn-primary" onclick="addRoomConfigRow()">' + (currentLang === 'fr' ? '➕ Ajouter une chambre' : '➕ Add a room') + '</button>';
+            html += '</div>';
+
+            return html;
+        }
+
+        function addRoomConfigRow() {
+            const container = document.getElementById('roomConfigList');
+            const div = document.createElement('div');
+            div.className = 'room-config-row';
+            div.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+            div.innerHTML = `
+                <input type="text" class="room-id" placeholder="${currentLang === 'fr' ? 'N° chambre' : 'Room #'}" style="width: 100px;">
+                <input type="number" class="room-capacity" value="2" min="1" placeholder="${currentLang === 'fr' ? 'Capacité' : 'Capacity'}" style="width: 100px;">
+                <input type="text" class="room-type" placeholder="${currentLang === 'fr' ? 'Type (optionnel)' : 'Type (optional)'}" style="flex: 1;">
+                <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
+            `;
+            container.appendChild(div);
         }
 
         // Render
@@ -721,10 +1121,14 @@
             const totalOccupied = appData.rooms.reduce((sum, r) => sum + r.occupants.length, 0);
             const availableRooms = appData.rooms.filter(r => r.occupants.length < r.capacity);
             
-            // Custom sort order for rooms
             const roomOrder = ['2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','25','26','C','E','G','I'];
             const sortedRooms = [...appData.rooms].sort((a, b) => {
-                return roomOrder.indexOf(a.id) - roomOrder.indexOf(b.id);
+                const aIndex = roomOrder.indexOf(a.id);
+                const bIndex = roomOrder.indexOf(b.id);
+                if (aIndex === -1 && bIndex === -1) return a.id.localeCompare(b.id);
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                return aIndex - bIndex;
             });
             
             const grouped = {};
@@ -733,97 +1137,142 @@
                 grouped[room.type].push(room);
             });
 
-            // Display in specific order
             const typeOrder = ['2 lits', '6 lits', '5 lits', '3 lits'];
+
+            const capacityWarning = appData.participants.length > appData.totalCapacity 
+                ? `<div class="alert alert-warning">
+                    ⚠️ ${currentLang === 'fr' 
+                        ? `ATTENTION : ${appData.participants.length} participants pour ${appData.totalCapacity} lits. Il manque ${appData.participants.length - appData.totalCapacity} places !`
+                        : `WARNING: ${appData.participants.length} participants for ${appData.totalCapacity} beds. ${appData.participants.length - appData.totalCapacity} places are missing!`}
+                </div>`
+                : '';
 
             document.getElementById('app').innerHTML = `
                 <div class="header">
                     <div class="header-content">
                         <div>
-                            <h1>👥 Attribution de chambres</h1>
-                            <p class="stats">${totalOccupied} / 106 participants inscrits</p>
+                            <h1>👥 ${t('title')}</h1>
+                            <p class="stats">${totalOccupied} / ${appData.totalCapacity} ${t('participantsRegistered')}</p>
                         </div>
-                        <button class="btn btn-primary" onclick="toggleAdminMode()">
-                            🔐 ${isAdmin ? 'Quitter Admin' : 'Mode Admin'}
-                        </button>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <div class="language-switcher">
+                                <span class="flag-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" onclick="switchLanguage('fr')" title="Français">🇫🇷</span>
+                                <span class="flag-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" onclick="switchLanguage('en')" title="English">🇬🇧</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="toggleAdminMode()">
+                                🔐 ${isAdmin ? t('quitAdmin') : t('adminMode')}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <div class="admin-panel ${isAdmin ? 'active' : ''}">
-                    <h2 style="margin-bottom: 15px;">Administration</h2>
-                    <div class="admin-controls">
-                        <label class="btn btn-primary" style="cursor: pointer;">
-                            📤 Importer Excel/CSV
-                            <input type="file" accept=".csv,.xlsx,.xls,.txt" onchange="handleFileUpload(event)" style="display: none;">
-                        </label>
-                        <button class="btn btn-success" onclick="exportResults()">
-                            📥 Exporter les résultats
+                    <h2 style="margin-bottom: 15px;">${t('administration')}</h2>
+                    
+                    ${capacityWarning}
+
+                    <div class="admin-section">
+                        <h3 style="margin-bottom: 15px;">${t('roomManagement')}</h3>
+                        <button class="btn btn-primary" onclick="showRoomConfig()">
+                            ⚙️ ${t('editRooms')}
                         </button>
-                        <div style="padding: 12px 24px; background: white; border-radius: 8px; font-weight: 600;">
-                            ${appData.participants.length} participants chargés
-                        </div>
+                        <p style="margin-top: 10px; color: #666; font-size: 0.9rem;">
+                            ${currentLang === 'fr' 
+                                ? `Configuration actuelle : ${appData.rooms.length} chambres, ${appData.totalCapacity} lits au total`
+                                : `Current configuration: ${appData.rooms.length} rooms, ${appData.totalCapacity} beds total`}
+                        </p>
                     </div>
 
-                    <div class="participant-list">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Liste des participants</h3>
-                            <button class="btn btn-primary btn-small" onclick="addParticipant()">
-                                ➕ Ajouter
+                    <div class="admin-section">
+                        <h3 style="margin-bottom: 15px;">${t('participantsList')}</h3>
+                        <div class="admin-controls">
+                            <label class="btn btn-primary" style="cursor: pointer;">
+                                📤 ${t('importCSV')}
+                                <input type="file" accept=".csv,.xlsx,.xls,.txt" onchange="handleFileUpload(event)" style="display: none;">
+                            </label>
+                            <button class="btn btn-success" onclick="exportResults()">
+                                📥 ${t('exportResults')}
                             </button>
+                            <button class="btn btn-danger" onclick="clearAllParticipants()">
+                                🗑️ ${t('clearAll')}
+                            </button>
+                            <div style="padding: 12px 24px; background: white; border-radius: 8px; font-weight: 600;">
+                                ${appData.participants.length} ${t('participantsLoaded')}
+                            </div>
+                            <div style="padding: 12px 24px; background: #dcfce7; border-radius: 8px; font-weight: 600; color: #166534;">
+                                ${t('totalCapacity')}: ${appData.totalCapacity} ${t('beds')}
+                            </div>
                         </div>
-                        ${appData.participants.length === 0 ? `
-                            <p style="text-align: center; color: #666; padding: 20px;">
-                                Aucun participant. Importez un fichier CSV ou ajoutez-les manuellement.
-                            </p>
-                        ` : `
-                            ${appData.participants.map((p, index) => {
-                                const isAssigned = appData.rooms.some(r => r.occupants.includes(p));
-                                return `
-                                    <div class="participant-item">
-                                        <span style="${isAssigned ? 'color: #10b981; font-weight: 600;' : ''}">
-                                            ${p} ${isAssigned ? '✓ Inscrit' : ''}
-                                        </span>
-                                        <div class="participant-actions">
-                                            <button class="btn btn-primary btn-small" onclick="editParticipant('${p.replace(/'/g, "\\'")}', ${index})">
-                                                ✏️ Modifier
-                                            </button>
-                                            <button class="btn btn-danger btn-small" onclick="deleteParticipant('${p.replace(/'/g, "\\'")}', ${index})">
-                                                🗑️
-                                            </button>
+
+                        <div class="participant-list">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="margin: 0;">${appData.participants.length} ${t('participantsLoaded')}</h4>
+                                <button class="btn btn-primary btn-small" onclick="addParticipant()">
+                                    ➕ ${t('add')}
+                                </button>
+                            </div>
+                            ${appData.participants.length === 0 ? `
+                                <p style="text-align: center; color: #666; padding: 20px;">
+                                    ${t('noParticipants')}
+                                </p>
+                            ` : `
+                                ${appData.participants.map((p, index) => {
+                                    const isAssigned = appData.rooms.some(r => r.occupants.includes(p));
+                                    return `
+                                        <div class="participant-item">
+                                            <span style="${isAssigned ? 'color: #10b981; font-weight: 600;' : ''}">
+                                                ${p} ${isAssigned ? '✓ ' + t('registered') : ''}
+                                            </span>
+                                            <div class="participant-actions">
+                                                <button class="btn btn-primary btn-small" onclick="editParticipant('${p.replace(/'/g, "\\'")}', ${index})">
+                                                    ✏️ ${t('modify')}
+                                                </button>
+                                                <button class="btn btn-danger btn-small" onclick="deleteParticipant('${p.replace(/'/g, "\\'")}', ${index})">
+                                                    🗑️
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        `}
+                                    `;
+                                }).join('')}
+                            `}
+                        </div>
                     </div>
                 </div>
 
                 ${!isAdmin ? `
                 <div class="inscription-form">
-                    <h2 style="margin-bottom: 20px;">Inscription</h2>
+                    <h2 style="margin-bottom: 20px;">${t('inscription')}</h2>
                     
                     <div class="form-group">
-                        <label>Sélectionnez une chambre disponible</label>
+                        <label>${t('selectRoom')}</label>
                         <select id="roomSelect">
-                            <option value="">-- Choisir une chambre --</option>
+                            <option value="">${t('chooseRoom')}</option>
                             ${availableRooms.sort((a, b) => {
-                                const order = ['2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','25','26','C','E','G','I'];
-                                return order.indexOf(a.id) - order.indexOf(b.id);
-                            }).map(room => `
+                                const aIndex = roomOrder.indexOf(a.id);
+                                const bIndex = roomOrder.indexOf(b.id);
+                                if (aIndex === -1 && bIndex === -1) return a.id.localeCompare(b.id);
+                                if (aIndex === -1) return 1;
+                                if (bIndex === -1) return -1;
+                                return aIndex - bIndex;
+                            }).map(room => {
+                                let prefLabel = '';
+                                if (room.genderPreference === 'female_only') prefLabel = ' 🚺';
+                                else if (room.genderPreference === 'male_only') prefLabel = ' 🚹';
+                                
+                                return `
                                 <option value="${room.id}">
-                                    Chambre n°${room.id} (${room.type}) - ${room.capacity - room.occupants.length} places restantes
-                                    ${room.isFemaleOnly ? ' 🚺 FEMMES' : ''}
+                                    ${t('room')}${room.id} (${room.type}) - ${room.capacity - room.occupants.length} ${t('placesRemaining')}${prefLabel}
                                 </option>
-                            `).join('')}
+                            `}).join('')}
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label>Membres du groupe</label>
+                        <label>${t('groupMembers')}</label>
                         <div class="member-inputs" id="memberInputs">
                             <div class="member-row">
                                 <select class="member-select" onchange="updateMemberSelects()">
-                                    <option value="">-- Choisir un participant --</option>
+                                    <option value="">${t('chooseParticipant')}</option>
                                     ${getAvailableParticipants().map(p => `
                                         <option value="${p}">${p}</option>
                                     `).join('')}
@@ -831,12 +1280,33 @@
                             </div>
                         </div>
                         <button class="btn btn-primary" onclick="addMemberInput(); updateMemberSelects();" style="margin-top: 10px;">
-                            ➕ Ajouter un membre
+                            ➕ ${t('addMember')}
                         </button>
                     </div>
 
+                    <div class="form-group">
+                        <label>${t('roomPreference')}</label>
+                        <div class="gender-preference">
+                            <div class="gender-option">
+                                <input type="radio" name="genderPref" value="mixed" id="mixed" checked>
+                                <label for="mixed" style="margin: 0;">${t('mixed')}</label>
+                            </div>
+                            <div class="gender-option">
+                                <input type="radio" name="genderPref" value="female_only" id="femaleOnly">
+                                <label for="femaleOnly" style="margin: 0;">🚺 ${t('femalesOnly')}</label>
+                            </div>
+                            <div class="gender-option">
+                                <input type="radio" name="genderPref" value="male_only" id="maleOnly">
+                                <label for="maleOnly" style="margin: 0;">🚹 ${t('malesOnly')}</label>
+                            </div>
+                        </div>
+                        <div class="info-box">
+                            ℹ️ ${t('preferenceInfo')}
+                        </div>
+                    </div>
+
                     <button class="btn btn-success btn-block" onclick="assignGroup()">
-                        Confirmer l'inscription
+                        ${t('confirmInscription')}
                     </button>
                 </div>
                 ` : ''}
@@ -846,26 +1316,39 @@
                     const rooms = grouped[type];
                     return `
                     <div class="rooms-grid">
-                        <h2 class="room-type-title">Chambres ${type} (${rooms.length} chambres)</h2>
+                        <h2 class="room-type-title">${t('rooms')} ${type} (${rooms.length} ${t('roomsCount')})</h2>
                         <div class="rooms-container">
-                            ${rooms.map(room => `
-                                <div class="room-card ${room.occupants.length === room.capacity ? 'full' : 'available'}">
+                            ${rooms.map(room => {
+                                let cardClass = 'room-card ';
+                                if (room.occupants.length === room.capacity) cardClass += 'full';
+                                else if (room.genderPreference === 'female_only') cardClass += 'female-pref';
+                                else if (room.genderPreference === 'male_only') cardClass += 'male-pref';
+                                else cardClass += 'available';
+
+                                let genderBadge = '';
+                                if (room.genderPreference === 'female_only') {
+                                    genderBadge = `<span class="badge badge-female">🚺 ${currentLang === 'fr' ? 'FEMMES' : 'FEMALES'}</span>`;
+                                } else if (room.genderPreference === 'male_only') {
+                                    genderBadge = `<span class="badge badge-male">🚹 ${currentLang === 'fr' ? 'HOMMES' : 'MALES'}</span>`;
+                                }
+
+                                return `
+                                <div class="${cardClass}">
                                     <div class="room-header">
                                         <div>
-                                            <div class="room-title">Chambre n°${room.id}</div>
-                                            <div style="font-size: 0.9rem; color: #666;">${room.occupants.length} / ${room.capacity} personnes</div>
+                                            <div class="room-title">${t('room')}${room.id}</div>
+                                            <div style="font-size: 0.9rem; color: #666;">${room.occupants.length} / ${room.capacity} ${t('people')}</div>
                                         </div>
                                         <div style="display: flex; gap: 5px; flex-direction: column;">
-                                            ${isAdmin ? `
-                                                <button class="badge ${room.isFemaleOnly ? 'badge-female' : 'badge-mixed'}" onclick="toggleFemaleOnly('${room.id}')">
-                                                    ${room.isFemaleOnly ? '🚺 FEMMES' : 'Mixte'}
+                                            ${genderBadge}
+                                            ${isAdmin && room.isFemaleOnly ? `
+                                                <button class="badge badge-female" onclick="toggleFemaleOnly('${room.id}')">
+                                                    🚺 ${currentLang === 'fr' ? 'FEMMES' : 'FEMALES'}
                                                 </button>
-                                            ` : room.isFemaleOnly ? `
-                                                <span class="badge badge-female">🚺 FEMMES</span>
                                             ` : ''}
                                             ${!isAdmin && room.occupants.length > 0 ? `
                                                 <button class="btn btn-warning" onclick="initiateModification('${room.id}')">
-                                                    🗑️ Supprimer mon groupe
+                                                    🗑️ ${t('deleteMyGroup')}
                                                 </button>
                                             ` : ''}
                                         </div>
@@ -882,11 +1365,11 @@
                                             </div>
                                         `).join('')}
                                         ${Array(room.capacity - room.occupants.length).fill(null).map(() => `
-                                            <div class="empty-bed">Lit disponible</div>
+                                            <div class="empty-bed">${t('availableBed')}</div>
                                         `).join('')}
                                     </div>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     </div>
                     `;
@@ -895,23 +1378,34 @@
                 <!-- Modals -->
                 <div class="modal" id="adminLoginModal">
                     <div class="modal-content">
-                        <h2 style="margin-bottom: 20px;">Connexion Admin</h2>
-                        <input type="password" id="adminPasswordInput" placeholder="Code admin" style="margin-bottom: 20px;" onkeypress="if(event.key==='Enter') loginAdmin()">
+                        <h2 style="margin-bottom: 20px;">${t('adminLogin')}</h2>
+                        <input type="password" id="adminPasswordInput" placeholder="${t('adminCode')}" style="margin-bottom: 20px;" onkeypress="if(event.key==='Enter') loginAdmin()">
                         <div class="modal-buttons">
-                            <button class="btn btn-primary" style="flex: 1;" onclick="loginAdmin()">Connexion</button>
-                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('adminLoginModal')">Annuler</button>
+                            <button class="btn btn-primary" style="flex: 1;" onclick="loginAdmin()">${t('login')}</button>
+                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('adminLoginModal')">${t('cancel')}</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="modal" id="modificationModal">
                     <div class="modal-content">
-                        <h2 style="margin-bottom: 20px;">Modifier votre inscription</h2>
-                        <p style="color: #666; margin-bottom: 20px;">Entrez le code reçu lors de votre inscription.</p>
-                        <input type="text" id="modificationCodeInput" placeholder="CODE (ex: AB12CD)" maxlength="6" style="text-transform: uppercase; margin-bottom: 20px;" onkeypress="if(event.key==='Enter') confirmModification()">
+                        <h2 style="margin-bottom: 20px;">${t('modifyInscription')}</h2>
+                        <p style="color: #666; margin-bottom: 20px;">${t('enterCode')}</p>
+                        <input type="text" id="modificationCodeInput" placeholder="${t('codeExample')}" maxlength="6" style="text-transform: uppercase; margin-bottom: 20px;" onkeypress="if(event.key==='Enter') confirmModification()">
                         <div class="modal-buttons">
-                            <button class="btn btn-primary" style="flex: 1;" onclick="confirmModification()">Confirmer</button>
-                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('modificationModal')">Annuler</button>
+                            <button class="btn btn-primary" style="flex: 1;" onclick="confirmModification()">${t('confirm')}</button>
+                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('modificationModal')">${t('cancel')}</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal" id="roomConfigModal">
+                    <div class="modal-content">
+                        <h2 style="margin-bottom: 20px;">${t('roomManagement')}</h2>
+                        <div id="roomConfigContent">${generateRoomConfigHTML()}</div>
+                        <div class="modal-buttons">
+                            <button class="btn btn-success" style="flex: 1;" onclick="saveRoomConfig()">${currentLang === 'fr' ? 'Sauvegarder' : 'Save'}</button>
+                            <button class="btn btn-danger" style="flex: 1;" onclick="hideModal('roomConfigModal')">${t('cancel')}</button>
                         </div>
                     </div>
                 </div>
