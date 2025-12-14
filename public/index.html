@@ -1155,15 +1155,21 @@
                 : 'Automatically generate multiple rooms with temporary numbering (editable afterwards)') + '</p>';
             
             // Table header
-            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; font-weight: 600; padding: 8px; background: #e0e7ff; border-radius: 6px;">';
-            html += `<div>${currentLang === 'fr' ? 'Capacité de la chambre' : 'Room capacity'}</div>`;
-            html += `<div>${currentLang === 'fr' ? 'Nombre de chambres' : 'Number of rooms'}</div>`;
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 10px; margin-bottom: 10px; font-weight: 600; padding: 8px; background: #e0e7ff; border-radius: 6px;">';
+            html += `<div>${currentLang === 'fr' ? 'Capacité' : 'Capacity'}</div>`;
+            html += `<div>${currentLang === 'fr' ? 'Nombre' : 'Count'}</div>`;
+            html += `<div>${currentLang === 'fr' ? 'Type' : 'Type'}</div>`;
             html += '</div>';
             
             html += '<div id="quickAddContainer">';
-            html += '<div class="quick-add-row" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;">';
+            html += '<div class="quick-add-row" style="display: grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap: 10px; margin-bottom: 10px; align-items: center;">';
             html += `<input type="number" class="quick-capacity" min="1" value="2" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}" style="padding: 10px;">`;
             html += `<input type="number" class="quick-count" min="1" value="1" placeholder="${currentLang === 'fr' ? 'Ex: 5' : 'E.g.: 5'}" style="padding: 10px;">`;
+            html += `<select class="quick-type" style="padding: 10px;">`;
+            html += `<option value="">${currentLang === 'fr' ? 'Auto' : 'Auto'}</option>`;
+            html += `<option value="lits doubles">${currentLang === 'fr' ? 'Lits doubles' : 'Double beds'}</option>`;
+            html += `<option value="lits simples">${currentLang === 'fr' ? 'Lits simples' : 'Single beds'}</option>`;
+            html += `</select>`;
             html += '<button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>';
             html += '</div>';
             html += '</div>';
@@ -1211,10 +1217,15 @@
             const container = document.getElementById('quickAddContainer');
             const div = document.createElement('div');
             div.className = 'quick-add-row';
-            div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+            div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
             div.innerHTML = `
                 <input type="number" class="quick-capacity" min="1" value="2" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}" style="padding: 10px;">
                 <input type="number" class="quick-count" min="1" value="1" placeholder="${currentLang === 'fr' ? 'Ex: 5' : 'E.g.: 5'}" style="padding: 10px;">
+                <select class="quick-type" style="padding: 10px;">
+                    <option value="">${currentLang === 'fr' ? 'Auto' : 'Auto'}</option>
+                    <option value="lits doubles">${currentLang === 'fr' ? 'Lits doubles' : 'Double beds'}</option>
+                    <option value="lits simples">${currentLang === 'fr' ? 'Lits simples' : 'Single beds'}</option>
+                </select>
                 <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
             `;
             container.appendChild(div);
@@ -1236,13 +1247,21 @@
             rows.forEach(row => {
                 const capacity = parseInt(row.querySelector('.quick-capacity').value) || 0;
                 const count = parseInt(row.querySelector('.quick-count').value) || 0;
+                const typeSelect = row.querySelector('.quick-type').value;
                 
                 if (capacity > 0 && count > 0) {
                     for (let i = 0; i < count; i++) {
+                        let roomType = '';
+                        if (typeSelect) {
+                            roomType = typeSelect;
+                        } else {
+                            roomType = `${capacity} ${currentLang === 'fr' ? 'lits' : 'beds'}`;
+                        }
+                        
                         newRooms.push({
                             id: `${nextRoomNumber}`,
                             capacity: capacity,
-                            type: `${capacity} ${currentLang === 'fr' ? 'lits' : 'beds'}`
+                            type: roomType
                         });
                         nextRoomNumber++;
                     }
@@ -1256,7 +1275,7 @@
 
             const summary = {};
             newRooms.forEach(r => {
-                const key = `${r.capacity} ${currentLang === 'fr' ? 'lits' : 'beds'}`;
+                const key = `${r.capacity} ${currentLang === 'fr' ? 'lits' : 'beds'} - ${r.type}`;
                 summary[key] = (summary[key] || 0) + 1;
             });
 
@@ -1303,7 +1322,7 @@
             container.appendChild(div);
         }
 
-// Render
+        // Render
         function renderApp() {
             const totalOccupied = appData.rooms.reduce((sum, r) => sum + r.occupants.length, 0);
             const availableRooms = appData.rooms.filter(r => r.occupants.length < r.capacity);
