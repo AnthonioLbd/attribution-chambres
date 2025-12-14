@@ -1265,11 +1265,11 @@
             const container = document.getElementById('roomConfigList');
             const div = document.createElement('div');
             div.className = 'room-config-row';
-            div.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+            div.style.cssText = 'display: grid; grid-template-columns: 100px 100px 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
             div.innerHTML = `
-                <input type="text" class="room-id" placeholder="${currentLang === 'fr' ? 'N° chambre' : 'Room #'}" style="width: 100px;">
-                <input type="number" class="room-capacity" value="2" min="1" placeholder="${currentLang === 'fr' ? 'Capacité' : 'Capacity'}" style="width: 100px;">
-                <input type="text" class="room-type" placeholder="${currentLang === 'fr' ? 'Type (optionnel)' : 'Type (optional)'}" style="flex: 1;">
+                <input type="text" class="room-id" placeholder="${currentLang === 'fr' ? 'Ex: A1' : 'E.g.: A1'}">
+                <input type="number" class="room-capacity" value="2" min="1" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}">
+                <input type="text" class="room-type" placeholder="${currentLang === 'fr' ? 'Optionnel' : 'Optional'}">
                 <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
             `;
             container.appendChild(div);
