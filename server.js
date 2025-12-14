@@ -300,10 +300,43 @@ app.post('/api/admin/update-participants', async (req, res) => {
 
         const toDelete = [...currentNames].filter(name => !newNames.has(name));
         if (toDelete.length > 0) {
+            // Delete from participants table
             await supabase
                 .from('participants')
                 .delete()
                 .in('name', toDelete);
+
+            // Also delete from occupants table (remove from rooms)
+            await supabase
+                .from('occupants')
+                .delete()
+                .in('name', toDelete);
+
+            // Reset gender preference for affected rooms
+            const { data: affectedRooms } = await supabase
+                .from('occupants')
+                .select('room_id')
+                .in('name', toDelete);
+
+            if (affectedRooms) {
+                const roomIds = [...new Set(affectedRooms.map(r => r.room_id))];
+                for (const roomId of roomIds) {
+                    const { data: remainingOccupants } = await supabase
+                        .from('occupants')
+                        .select('id')
+                        .eq('room_id', roomId);
+
+                    if (!remainingOccupants || remainingOccupants.length === 0) {
+                        await supabase
+                            .from('rooms')
+                            .update({ 
+                                gender_preference: 'mixed',
+                                user_preference: false 
+                            })
+                            .eq('id', roomId);
+                    }
+                }
+            }
         }
 
         const toAdd = [...newNames].filter(name => !currentNames.has(name));
@@ -312,6 +345,115 @@ app.post('/api/admin/update-participants', async (req, res) => {
                 .from('participants')
                 .insert(toAdd.map(name => ({ name })));
         }
+
+        const data = await getAllData();
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/admin/edit-participant', async (req, res) => {
+    try {
+        const { oldName, newName, password } = req.body;
+        
+        if (password !== 'adminlvp25') {
+            return res.status(401).json({ error: 'Code admin incorrect' });
+        }
+
+        // Update in participants table
+        await supabase
+            .from('participants')
+            .update({ name: newName })
+            .eq('name', oldName);
+
+        // Update in occupants table (update in rooms)
+        await supabase
+            .from('occupants')
+            .update({ name: newName })
+            .eq('name', oldName);
+
+        const data = await getAllData();
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/admin/delete-participant', async (req, res) => {
+    try {
+        const { name, password } = req.body;
+        
+        if (password !== 'adminlvp25') {
+            return res.status(401).json({ error: 'Code admin incorrect' });
+        }
+
+        // Get room info before deleting
+        const { data: occupant } = await supabase
+            .from('occupants')
+            .select('room_id')
+            .eq('name', name)
+            .single();
+
+        // Delete from participants
+        await supabase
+            .from('participants')
+            .delete()
+            .eq('name', name);
+
+        // Delete from occupants (remove from room)
+        await supabase
+            .from('occupants')
+            .delete()
+            .eq('name', name);
+
+        // Check if room is now empty and reset preference
+        if (occupant) {
+            const { data: remainingOccupants } = await supabase
+                .from('occupants')
+                .select('id')
+                .eq('room_id', occupant.room_id);
+
+            if (!remainingOccupants || remainingOccupants.length === 0) {
+                await supabase
+                    .from('rooms')
+                    .update({ 
+                        gender_preference: 'mixed',
+                        user_preference: false 
+                    })
+                    .eq('id', occupant.room_id);
+            }
+        }
+
+        const data = await getAllData();
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/admin/clear-room', async (req, res) => {
+    try {
+        const { roomId, password } = req.body;
+        
+        if (password !== 'adminlvp25') {
+            return res.status(401).json({ error: 'Code admin incorrect' });
+        }
+
+        // Delete all occupants from this room
+        await supabase
+            .from('occupants')
+            .delete()
+            .eq('room_id', roomId);
+
+        // Reset gender preference
+        await supabase
+            .from('rooms')
+            .update({ 
+                gender_preference: 'mixed',
+                user_preference: false 
+            })
+            .eq('id', roomId);
 
         const data = await getAllData();
         res.json({ success: true, data });
@@ -345,24 +487,29 @@ app.post('/api/admin/update-rooms', async (req, res) => {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
+        // Delete all occupants first (they will be orphaned anyway)
+        await supabase.from('occupants').delete().neq('id', 0);
+
         // Delete all current rooms
         await supabase.from('rooms').delete().neq('id', '');
 
-        // Insert new rooms
-        const roomsToInsert = rooms.map(room => ({
-            id: room.id,
-            capacity: room.capacity,
-            type: room.type,
-            is_female_only: false,
-            gender_preference: 'mixed',
-            user_preference: false
-        }));
+        // Insert new rooms if any
+        if (rooms.length > 0) {
+            const roomsToInsert = rooms.map(room => ({
+                id: room.id,
+                capacity: room.capacity,
+                type: room.type,
+                is_female_only: false,
+                gender_preference: 'mixed',
+                user_preference: false
+            }));
 
-        const { error: insertError } = await supabase
-            .from('rooms')
-            .insert(roomsToInsert);
+            const { error: insertError } = await supabase
+                .from('rooms')
+                .insert(roomsToInsert);
 
-        if (insertError) throw insertError;
+            if (insertError) throw insertError;
+        }
 
         const data = await getAllData();
         res.json({ success: true, data });
