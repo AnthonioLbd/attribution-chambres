@@ -924,3 +924,384 @@
         }
 
         function deleteParticipant(name, index) {
+            const isAssigned = appData.rooms.some(r => r.occupants.includes(name));
+            
+            let confirmMsg = currentLang === 'fr' ? `Supprimer ${name} de la liste ?` : `Delete ${name} from the list?`;
+            if (isAssigned) {
+                confirmMsg = currentLang === 'fr'
+                    ? `⚠️ ${name} est inscrit(e) dans une chambre.\n\nSupprimer le/la de la liste le/la retirera automatiquement de sa chambre.\n\nContinuer ?`
+                    : `⚠️ ${name} is registered in a room.\n\nDeleting from the list will automatically remove them from their room.\n\nContinue?`;
+            }
+
+            if (!confirm(confirmMsg)) return;
+
+            deleteParticipantFromDB(name);
+        }
+
+        async function deleteParticipantFromDB(name) {
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/delete-participant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    loadData();
+                    return;
+                }
+
+                appData = result.data;
+                alert(currentLang === 'fr' ? '✅ Participant supprimé !' : '✅ Participant deleted!');
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+                loadData();
+            }
+        }
+
+        async function clearAllParticipants() {
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ ATTENTION : Êtes-vous sûr de vouloir effacer toute la liste des participants ?\n\nCette action est irréversible !'
+                : '⚠️ WARNING: Are you sure you want to clear the entire participants list?\n\nThis action is irreversible!')) {
+                return;
+            }
+
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/clear-participants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+                alert(currentLang === 'fr' ? 'Liste effacée !' : 'List cleared!');
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        async function saveParticipants() {
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/update-participants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participants: appData.participants, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    loadData();
+                    return;
+                }
+
+                appData = result.data;
+                alert(currentLang === 'fr' ? '✅ Liste des participants sauvegardée !' : '✅ Participants list saved!');
+                renderApp();
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+                loadData();
+            }
+        }
+
+        async function clearRoom(roomId) {
+            if (!confirm(currentLang === 'fr'
+                ? `⚠️ Vider complètement la chambre n°${roomId} ?\n\nTous les occupants seront retirés.`
+                : `⚠️ Clear room #${roomId} completely?\n\nAll occupants will be removed.`)) {
+                return;
+            }
+
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/clear-room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                renderApp();
+                alert(currentLang === 'fr' ? '✅ Chambre vidée !' : '✅ Room cleared!');
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        // Room configuration
+        function showRoomConfig() {
+            showModal('roomConfigModal');
+        }
+
+        function saveRoomConfig() {
+            const inputs = document.querySelectorAll('.room-config-row');
+            const rooms = [];
+            const roomIds = new Set();
+
+            for (let input of inputs) {
+                const id = input.querySelector('.room-id').value.trim();
+                const capacity = parseInt(input.querySelector('.room-capacity').value);
+                const type = input.querySelector('.room-type').value;
+
+                if (!id) {
+                    alert(currentLang === 'fr' ? 'Tous les numéros de chambre doivent être renseignés' : 'All room numbers must be filled');
+                    return;
+                }
+
+                if (roomIds.has(id)) {
+                    alert(currentLang === 'fr' ? `Le numéro de chambre "${id}" est utilisé plusieurs fois !` : `Room number "${id}" is used multiple times!`);
+                    return;
+                }
+
+                roomIds.add(id);
+
+                if (!capacity || capacity < 1) {
+                    alert(currentLang === 'fr' ? 'Toutes les capacités doivent être supérieures à 0' : 'All capacities must be greater than 0');
+                    return;
+                }
+
+                rooms.push({ id, capacity, type: type || `${capacity} lits` });
+            }
+
+            if (rooms.length === 0) {
+                alert(currentLang === 'fr' ? 'Au moins une chambre est nécessaire' : 'At least one room is required');
+                return;
+            }
+
+            if (!confirm(currentLang === 'fr'
+                ? `⚠️ Vous allez remplacer la configuration des chambres.\n\n${rooms.length} chambres, capacité totale: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} lits.\n\nContinuer ?`
+                : `⚠️ You will replace the room configuration.\n\n${rooms.length} rooms, total capacity: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} beds.\n\nContinue?`)) {
+                return;
+            }
+
+            updateRoomsInDB(rooms);
+        }
+
+        async function updateRoomsInDB(rooms) {
+            const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
+            
+            try {
+                const response = await fetch('/api/admin/update-rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rooms, password })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    alert(result.error);
+                    return;
+                }
+
+                appData = result.data;
+                hideModal('roomConfigModal');
+                renderApp();
+                alert(currentLang === 'fr' ? '✅ Configuration des chambres mise à jour !' : '✅ Room configuration updated!');
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            }
+        }
+
+        function generateRoomConfigHTML() {
+            const grouped = {};
+            appData.rooms.forEach(room => {
+                const key = `${room.capacity} lits`;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(room.id);
+            });
+
+            let html = '<div style="margin-bottom: 20px;">';
+            html += '<h3 style="margin-bottom: 10px;">' + (currentLang === 'fr' ? 'Configuration actuelle :' : 'Current configuration:') + '</h3>';
+            html += '<table><thead><tr><th>' + (currentLang === 'fr' ? 'Type' : 'Type') + '</th><th>' + (currentLang === 'fr' ? 'Nombre' : 'Count') + '</th><th>' + (currentLang === 'fr' ? 'Numéros' : 'Numbers') + '</th></tr></thead><tbody>';
+            
+            Object.entries(grouped).forEach(([type, ids]) => {
+                html += `<tr><td>${type}</td><td>${ids.length}</td><td>${ids.join(', ')}</td></tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+
+            // Quick add section
+            html += '<div style="margin-bottom: 30px; padding: 20px; background: #f0f4ff; border-radius: 8px;">';
+            html += '<h3 style="margin-bottom: 15px;">' + (currentLang === 'fr' ? '⚡ Ajout rapide de chambres' : '⚡ Quick add rooms') + '</h3>';
+            html += '<p style="margin-bottom: 15px; color: #666; font-size: 0.9rem;">' + (currentLang === 'fr' 
+                ? 'Générez automatiquement plusieurs chambres avec numérotation provisoire (modifiable ensuite)'
+                : 'Automatically generate multiple rooms with temporary numbering (editable afterwards)') + '</p>';
+            
+            // Table header
+            html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; font-weight: 600; padding: 8px; background: #e0e7ff; border-radius: 6px;">';
+            html += `<div>${currentLang === 'fr' ? 'Capacité de la chambre' : 'Room capacity'}</div>`;
+            html += `<div>${currentLang === 'fr' ? 'Nombre de chambres' : 'Number of rooms'}</div>`;
+            html += '</div>';
+            
+            html += '<div id="quickAddContainer">';
+            html += '<div class="quick-add-row" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;">';
+            html += `<input type="number" class="quick-capacity" min="1" value="2" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}" style="padding: 10px;">`;
+            html += `<input type="number" class="quick-count" min="1" value="1" placeholder="${currentLang === 'fr' ? 'Ex: 5' : 'E.g.: 5'}" style="padding: 10px;">`;
+            html += '<button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>';
+            html += '</div>';
+            html += '</div>';
+            
+            html += '<div style="display: flex; gap: 10px; margin-top: 15px;">';
+            html += '<button class="btn btn-primary" onclick="addQuickAddRow()">' + (currentLang === 'fr' ? '➕ Ajouter un groupe de chambres' : '➕ Add a group of rooms') + '</button>';
+            html += '<button class="btn btn-success" onclick="quickAddRooms()">' + (currentLang === 'fr' ? '✨ Générer ces chambres' : '✨ Generate these rooms') + '</button>';
+            html += '</div>';
+            html += '</div>';
+
+            html += '<div style="margin-bottom: 20px;"><h3>' + (currentLang === 'fr' ? 'Modifier la configuration :' : 'Edit configuration:') + '</h3>';
+            
+            // Table header for room config
+            html += '<div style="display: grid; grid-template-columns: 100px 100px 1fr auto; gap: 10px; margin-bottom: 10px; font-weight: 600; padding: 8px; background: #f3f4f6; border-radius: 6px;">';
+            html += `<div>${currentLang === 'fr' ? 'N° chambre' : 'Room #'}</div>`;
+            html += `<div>${currentLang === 'fr' ? 'Capacité' : 'Capacity'}</div>`;
+            html += `<div>${currentLang === 'fr' ? 'Type (lits double, lits individuels...)' : 'Type (double beds, single beds...)'}</div>`;
+            html += `<div></div>`;
+            html += '</div>';
+            
+            html += '<div id="roomConfigList">';
+            
+            appData.rooms.forEach(room => {
+                html += `
+                    <div class="room-config-row" style="display: grid; grid-template-columns: 100px 100px 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;">
+                        <input type="text" class="room-id" value="${room.id}" placeholder="${currentLang === 'fr' ? 'Ex: A1' : 'E.g.: A1'}">
+                        <input type="number" class="room-capacity" value="${room.capacity}" min="1" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}">
+                        <input type="text" class="room-type" value="${room.type}" placeholder="${currentLang === 'fr' ? 'Optionnel' : 'Optional'}">
+                        <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
+            html += '<button class="btn btn-primary" onclick="addRoomConfigRow()">' + (currentLang === 'fr' ? '➕ Ajouter une chambre' : '➕ Add a room') + '</button>';
+            html += '<button class="btn btn-danger" onclick="clearAllRooms()">' + (currentLang === 'fr' ? '🗑️ Supprimer toutes les chambres' : '🗑️ Delete all rooms') + '</button>';
+            html += '</div>';
+            html += '</div>';
+
+            return html;
+        }
+
+        function addQuickAddRow() {
+            const container = document.getElementById('quickAddContainer');
+            const div = document.createElement('div');
+            div.className = 'quick-add-row';
+            div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+            div.innerHTML = `
+                <input type="number" class="quick-capacity" min="1" value="2" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}" style="padding: 10px;">
+                <input type="number" class="quick-count" min="1" value="1" placeholder="${currentLang === 'fr' ? 'Ex: 5' : 'E.g.: 5'}" style="padding: 10px;">
+                <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function quickAddRooms() {
+            const rows = document.querySelectorAll('.quick-add-row');
+            let newRooms = [];
+            let nextRoomNumber = 1;
+
+            // Get existing max room number
+            appData.rooms.forEach(room => {
+                const num = parseInt(room.id);
+                if (!isNaN(num) && num >= nextRoomNumber) {
+                    nextRoomNumber = num + 1;
+                }
+            });
+
+            rows.forEach(row => {
+                const capacity = parseInt(row.querySelector('.quick-capacity').value) || 0;
+                const count = parseInt(row.querySelector('.quick-count').value) || 0;
+                
+                if (capacity > 0 && count > 0) {
+                    for (let i = 0; i < count; i++) {
+                        newRooms.push({
+                            id: `${nextRoomNumber}`,
+                            capacity: capacity,
+                            type: `${capacity} ${currentLang === 'fr' ? 'lits' : 'beds'}`
+                        });
+                        nextRoomNumber++;
+                    }
+                }
+            });
+
+            if (newRooms.length === 0) {
+                alert(currentLang === 'fr' ? 'Aucune chambre à ajouter' : 'No rooms to add');
+                return;
+            }
+
+            const summary = {};
+            newRooms.forEach(r => {
+                const key = `${r.capacity} ${currentLang === 'fr' ? 'lits' : 'beds'}`;
+                summary[key] = (summary[key] || 0) + 1;
+            });
+
+            const summaryText = Object.entries(summary).map(([type, count]) => `${count} × ${type}`).join('\n');
+
+            if (!confirm(currentLang === 'fr'
+                ? `Ajouter ${newRooms.length} nouvelles chambres ?\n\n${summaryText}\n\nNumérotation de ${newRooms[0].id} à ${newRooms[newRooms.length-1].id}`
+                : `Add ${newRooms.length} new rooms?\n\n${summaryText}\n\nNumbering from ${newRooms[0].id} to ${newRooms[newRooms.length-1].id}`)) {
+                return;
+            }
+
+            // Add to existing rooms
+            const allRooms = [...appData.rooms, ...newRooms];
+            updateRoomsInDB(allRooms);
+        }
+
+        function clearAllRooms() {
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ ATTENTION : Supprimer TOUTES les chambres ?\n\nCette action supprimera aussi toutes les inscriptions !\n\nÊtes-vous absolument sûr ?'
+                : '⚠️ WARNING: Delete ALL rooms?\n\nThis will also delete all registrations!\n\nAre you absolutely sure?')) {
+                return;
+            }
+
+            if (!confirm(currentLang === 'fr'
+                ? '⚠️ DERNIÈRE CONFIRMATION : Cette action est irréversible !'
+                : '⚠️ FINAL CONFIRMATION: This action is irreversible!')) {
+                return;
+            }
+
+            updateRoomsInDB([]);
+        }
+
+        function addRoomConfigRow() {
+            const container = document.getElementById('roomConfigList');
+            const div = document.createElement('div');
+            div.className = 'room-config-row';
+            div.style.cssText = 'display: grid; grid-template-columns: 100px 100px 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center;';
+            div.innerHTML = `
+                <input type="text" class="room-id" placeholder="${currentLang === 'fr' ? 'Ex: A1' : 'E.g.: A1'}">
+                <input type="number" class="room-capacity" value="2" min="1" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}">
+                <input type="text" class="room-type" placeholder="${currentLang === 'fr' ? 'Optionnel' : 'Optional'}">
+                <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
+            `;
+            container.appendChild(div);
+        }
+
+        // Render
+        function renderApp() {
