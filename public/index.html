@@ -15,7 +15,13 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
+        }
+        
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
         }
 
         .container {
@@ -25,10 +31,17 @@
 
         .header {
             background: white;
-            padding: 30px;
+            padding: 15px;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
+            margin-bottom: 15px;
+        }
+        
+        @media (min-width: 768px) {
+            .header {
+                padding: 30px;
+                margin-bottom: 30px;
+            }
         }
 
         .header-content {
@@ -69,23 +82,39 @@
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 1.5rem;
             color: #333;
         }
 
         .stats {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             color: #666;
+        }
+        
+        @media (min-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            .stats {
+                font-size: 1.1rem;
+            }
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+        }
+        
+        @media (min-width: 768px) {
+            .btn {
+                padding: 12px 24px;
+                font-size: 1rem;
+            }
         }
 
         .btn-primary {
@@ -197,10 +226,17 @@
 
         input, select {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        @media (min-width: 768px) {
+            input, select {
+                padding: 12px;
+                font-size: 1rem;
+            }
         }
 
         input:focus, select:focus {
@@ -258,17 +294,30 @@
         }
 
         .room-type-title {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             color: #333;
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 3px solid #667eea;
         }
+        
+        @media (min-width: 768px) {
+            .room-type-title {
+                font-size: 1.5rem;
+            }
+        }
 
         .rooms-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        @media (min-width: 768px) {
+            .rooms-container {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 20px;
+            }
         }
 
         .room-card {
@@ -306,8 +355,14 @@
         }
 
         .room-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
+        }
+        
+        @media (min-width: 768px) {
+            .room-title {
+                font-size: 1.2rem;
+            }
         }
 
         .badge {
@@ -320,18 +375,18 @@
         }
 
         .badge-female {
-            background: #fce7f3;
-            color: #be185d;
+            background: #fce7f3 !important;
+            color: #be185d !important;
         }
 
         .badge-mixed {
-            background: #e5e7eb;
-            color: #6b7280;
+            background: #e5e7eb !important;
+            color: #6b7280 !important;
         }
 
         .badge-male {
-            background: #dbeafe;
-            color: #1e40af;
+            background: #dbeafe !important;
+            color: #1e40af !important;
         }
 
         .occupants-list {
@@ -447,6 +502,71 @@
         table th {
             background: #f9fafb;
             font-weight: 600;
+        }
+        
+        /* Optimisations tactiles mobiles */
+        @media (max-width: 767px) {
+            .btn, button {
+                min-height: 44px; /* Taille minimum recommandée pour les éléments tactiles */
+            }
+            
+            .lang-btn {
+                min-width: 50px;
+                min-height: 40px;
+            }
+            
+            /* Améliorer la lisibilité des badges sur mobile */
+            .badge {
+                font-size: 0.7rem;
+                padding: 4px 10px;
+            }
+            
+            /* Espacement optimisé pour le tactile */
+            .room-card {
+                padding: 15px;
+            }
+            
+            /* Adapter la grille de configuration sur mobile */
+            .room-config-row {
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+            
+            .room-config-row input,
+            .room-config-row select {
+                width: 100% !important;
+            }
+            
+            /* En-têtes masqués sur mobile (labels intégrés) */
+            .room-config-row:first-of-type {
+                display: none;
+            }
+            
+            /* Ajout rapide adapté mobile */
+            .quick-add-row {
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+            
+            /* Modal adapté mobile */
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+                max-height: 85vh;
+            }
+            
+            /* Améliorer l'espacement des sections admin */
+            .admin-section {
+                padding: 15px;
+            }
+            
+            .inscription-form {
+                padding: 20px;
+            }
+            
+            .rooms-grid {
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -1079,7 +1199,8 @@
             for (let input of inputs) {
                 const id = input.querySelector('.room-id').value.trim();
                 const capacity = parseInt(input.querySelector('.room-capacity').value);
-                const type = input.querySelector('.room-type').value;
+                const typeSelect = input.querySelector('.room-type');
+                const type = typeSelect.value || `${capacity} lits`;
 
                 if (!id) {
                     alert(currentLang === 'fr' ? 'Tous les numéros de chambre doivent être renseignés' : 'All room numbers must be filled');
@@ -1098,7 +1219,7 @@
                     return;
                 }
 
-                rooms.push({ id, capacity, type: type || `${capacity} lits` });
+                rooms.push({ id, capacity, type });
             }
 
             if (rooms.length === 0) {
@@ -1168,28 +1289,34 @@
             
             // Container for dynamic rows
             html += '<div id="quickAddContainer">';
-            html += '<div class="quick-add-row" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">';
-            html += '<div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">' + (currentLang === 'fr' ? 'Capacité de la chambre' : 'Room capacity') + '</label>';
+            html += '<div class="quick-add-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">';
+            html += '<div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">' + (currentLang === 'fr' ? 'Capacité' : 'Capacity') + '</label>';
             html += '<input type="number" class="quick-capacity" min="1" value="2" style="width: 100%; padding: 8px;"></div>';
-            html += '<div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">' + (currentLang === 'fr' ? 'Nombre de chambres' : 'Number of rooms') + '</label>';
+            html += '<div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">' + (currentLang === 'fr' ? 'Nombre' : 'Count') + '</label>';
             html += '<input type="number" class="quick-count" min="0" value="0" style="width: 100%; padding: 8px;"></div>';
+            html += '<div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">' + (currentLang === 'fr' ? 'Type (opt.)' : 'Type (opt.)') + '</label>';
+            html += '<select class="quick-type" style="width: 100%; padding: 8px;">';
+            html += '<option value="">' + (currentLang === 'fr' ? 'Par défaut' : 'Default') + '</option>';
+            html += '<option value="lits doubles">' + (currentLang === 'fr' ? 'Lits doubles' : 'Double beds') + '</option>';
+            html += '<option value="lits individuels">' + (currentLang === 'fr' ? 'Lits individuels' : 'Single beds') + '</option>';
+            html += '</select></div>';
             html += '<button class="btn btn-danger btn-small" onclick="removeQuickAddRow(this)" style="height: 40px;">🗑️</button>';
             html += '</div>';
             html += '</div>';
             
             html += '<div style="display: flex; gap: 10px; margin-top: 15px;">';
-            html += '<button class="btn btn-primary" onclick="addQuickAddRow()" style="flex: 1;">' + (currentLang === 'fr' ? '➕ Ajouter un groupe de chambres' : '➕ Add room group') + '</button>';
-            html += '<button class="btn btn-success" onclick="quickAddRooms()" style="flex: 1;">' + (currentLang === 'fr' ? '✓ Générer ces chambres' : '✓ Generate these rooms') + '</button>';
+            html += '<button class="btn btn-primary" onclick="addQuickAddRow()" style="flex: 1;">' + (currentLang === 'fr' ? '➕ Ajouter un groupe' : '➕ Add group') + '</button>';
+            html += '<button class="btn btn-success" onclick="quickAddRooms()" style="flex: 1;">' + (currentLang === 'fr' ? '✓ Générer' : '✓ Generate') + '</button>';
             html += '</div>';
             html += '</div>';
 
             html += '<div style="margin-bottom: 20px; margin-top: 30px;"><h3 style="margin-bottom: 15px;">' + (currentLang === 'fr' ? 'Modifier la configuration :' : 'Edit configuration:') + '</h3>';
             
             // Table headers
-            html += '<div style="display: grid; grid-template-columns: 120px 120px 1fr 60px; gap: 10px; margin-bottom: 10px; padding: 10px; background: #f9fafb; border-radius: 8px; font-weight: 600; color: #333;">';
+            html += '<div style="display: grid; grid-template-columns: 120px 100px 1fr 60px; gap: 10px; margin-bottom: 10px; padding: 10px; background: #f9fafb; border-radius: 8px; font-weight: 600; color: #333;">';
             html += '<div>' + (currentLang === 'fr' ? 'N° chambre' : 'Room #') + '</div>';
             html += '<div>' + (currentLang === 'fr' ? 'Capacité' : 'Capacity') + '</div>';
-            html += '<div>' + (currentLang === 'fr' ? 'Type (lits double, lits individuels...)' : 'Type (double beds, single beds...)') + '</div>';
+            html += '<div>' + (currentLang === 'fr' ? 'Type de lits' : 'Bed type') + '</div>';
             html += '<div></div>';
             html += '</div>';
             
@@ -1197,10 +1324,14 @@
             
             appData.rooms.forEach(room => {
                 html += `
-                    <div class="room-config-row" style="display: grid; grid-template-columns: 120px 120px 1fr 60px; gap: 10px; margin-bottom: 10px; align-items: center;">
-                        <input type="text" class="room-id" value="${room.id}" placeholder="${currentLang === 'fr' ? 'Ex: A1' : 'E.g.: A1'}" style="width: 100%;">
-                        <input type="number" class="room-capacity" value="${room.capacity}" min="1" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}" style="width: 100%;">
-                        <input type="text" class="room-type" value="${room.type}" placeholder="${currentLang === 'fr' ? 'Optionnel' : 'Optional'}" style="width: 100%;">
+                    <div class="room-config-row" style="display: grid; grid-template-columns: 120px 100px 1fr 60px; gap: 10px; margin-bottom: 10px; align-items: center;">
+                        <input type="text" class="room-id" value="${room.id}" placeholder="${currentLang === 'fr' ? 'Ex: 101' : 'E.g.: 101'}" style="width: 100%;">
+                        <input type="number" class="room-capacity" value="${room.capacity}" min="1" placeholder="2" style="width: 100%;">
+                        <select class="room-type" style="width: 100%;">
+                            <option value="">${currentLang === 'fr' ? 'Type par défaut' : 'Default type'}</option>
+                            <option value="lits doubles" ${room.type === 'lits doubles' ? 'selected' : ''}>${currentLang === 'fr' ? 'Lits doubles' : 'Double beds'}</option>
+                            <option value="lits individuels" ${room.type === 'lits individuels' ? 'selected' : ''}>${currentLang === 'fr' ? 'Lits individuels' : 'Single beds'}</option>
+                        </select>
                         <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
                     </div>
                 `;
@@ -1209,7 +1340,7 @@
             html += '</div>';
             html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
             html += '<button class="btn btn-primary" onclick="addRoomConfigRow()">' + (currentLang === 'fr' ? '➕ Ajouter une chambre' : '➕ Add a room') + '</button>';
-            html += '<button class="btn btn-danger" onclick="clearAllRooms()">' + (currentLang === 'fr' ? '🗑️ Supprimer toutes les chambres' : '🗑️ Delete all rooms') + '</button>';
+            html += '<button class="btn btn-danger" onclick="clearAllRooms()">' + (currentLang === 'fr' ? '🗑️ Supprimer tout' : '🗑️ Delete all') + '</button>';
             html += '</div>';
             html += '</div>';
 
@@ -1220,12 +1351,18 @@
             const container = document.getElementById('quickAddContainer');
             const div = document.createElement('div');
             div.className = 'quick-add-row';
-            div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
+            div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
             div.innerHTML = `
-                <div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">${currentLang === 'fr' ? 'Capacité de la chambre' : 'Room capacity'}</label>
+                <div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">${currentLang === 'fr' ? 'Capacité' : 'Capacity'}</label>
                 <input type="number" class="quick-capacity" min="1" value="2" style="width: 100%; padding: 8px;"></div>
-                <div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">${currentLang === 'fr' ? 'Nombre de chambres' : 'Number of rooms'}</label>
+                <div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">${currentLang === 'fr' ? 'Nombre' : 'Count'}</label>
                 <input type="number" class="quick-count" min="0" value="0" style="width: 100%; padding: 8px;"></div>
+                <div><label style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 5px;">${currentLang === 'fr' ? 'Type (opt.)' : 'Type (opt.)'}</label>
+                <select class="quick-type" style="width: 100%; padding: 8px;">
+                    <option value="">${currentLang === 'fr' ? 'Par défaut' : 'Default'}</option>
+                    <option value="lits doubles">${currentLang === 'fr' ? 'Lits doubles' : 'Double beds'}</option>
+                    <option value="lits individuels">${currentLang === 'fr' ? 'Lits individuels' : 'Single beds'}</option>
+                </select></div>
                 <button class="btn btn-danger btn-small" onclick="removeQuickAddRow(this)" style="height: 40px;">🗑️</button>
             `;
             container.appendChild(div);
@@ -1245,24 +1382,34 @@
             let newRooms = [];
             let nextRoomNumber = 1;
 
-            // Get existing max room number
+            // Get existing max PROV number
             appData.rooms.forEach(room => {
-                const num = parseInt(room.id);
-                if (!isNaN(num) && num >= nextRoomNumber) {
-                    nextRoomNumber = num + 1;
+                if (room.id.startsWith('PROV-')) {
+                    const num = parseInt(room.id.replace('PROV-', ''));
+                    if (!isNaN(num) && num >= nextRoomNumber) {
+                        nextRoomNumber = num + 1;
+                    }
                 }
             });
 
             rows.forEach(row => {
                 const capacity = parseInt(row.querySelector('.quick-capacity').value) || 0;
                 const count = parseInt(row.querySelector('.quick-count').value) || 0;
+                const bedType = row.querySelector('.quick-type').value;
                 
                 if (capacity > 0 && count > 0) {
                     for (let i = 0; i < count; i++) {
+                        let type = bedType || `${capacity} lits`;
+                        if (bedType === 'lits doubles') {
+                            type = 'lits doubles';
+                        } else if (bedType === 'lits individuels') {
+                            type = 'lits individuels';
+                        }
+                        
                         newRooms.push({
-                            id: `${nextRoomNumber}`,
+                            id: `PROV-${nextRoomNumber}`,
                             capacity: capacity,
-                            type: `${capacity} lits`
+                            type: type
                         });
                         nextRoomNumber++;
                     }
@@ -1275,8 +1422,8 @@
             }
 
             if (!confirm(currentLang === 'fr'
-                ? `Ajouter ${newRooms.length} nouvelles chambres ?\n\nNumérotation provisoire de ${newRooms[0].id} à ${newRooms[newRooms.length-1].id}`
-                : `Add ${newRooms.length} new rooms?\n\nTemporary numbering from ${newRooms[0].id} to ${newRooms[newRooms.length-1].id}`)) {
+                ? `Ajouter ${newRooms.length} nouvelles chambres ?\n\nNumérotation provisoire de ${newRooms[0].id} à ${newRooms[newRooms.length-1].id}\n(Vous pourrez modifier les numéros après)`
+                : `Add ${newRooms.length} new rooms?\n\nTemporary numbering from ${newRooms[0].id} to ${newRooms[newRooms.length-1].id}\n(You can modify numbers afterwards)`)) {
                 return;
             }
 
@@ -1305,11 +1452,15 @@
             const container = document.getElementById('roomConfigList');
             const div = document.createElement('div');
             div.className = 'room-config-row';
-            div.style.cssText = 'display: grid; grid-template-columns: 120px 120px 1fr 60px; gap: 10px; margin-bottom: 10px; align-items: center;';
+            div.style.cssText = 'display: grid; grid-template-columns: 120px 100px 1fr 60px; gap: 10px; margin-bottom: 10px; align-items: center;';
             div.innerHTML = `
-                <input type="text" class="room-id" placeholder="${currentLang === 'fr' ? 'Ex: A1' : 'E.g.: A1'}" style="width: 100%;">
-                <input type="number" class="room-capacity" value="2" min="1" placeholder="${currentLang === 'fr' ? 'Ex: 2' : 'E.g.: 2'}" style="width: 100%;">
-                <input type="text" class="room-type" placeholder="${currentLang === 'fr' ? 'Optionnel' : 'Optional'}" style="width: 100%;">
+                <input type="text" class="room-id" placeholder="${currentLang === 'fr' ? 'Ex: 101' : 'E.g.: 101'}" style="width: 100%;">
+                <input type="number" class="room-capacity" value="2" min="1" placeholder="2" style="width: 100%;">
+                <select class="room-type" style="width: 100%;">
+                    <option value="">${currentLang === 'fr' ? 'Type par défaut' : 'Default type'}</option>
+                    <option value="lits doubles">${currentLang === 'fr' ? 'Lits doubles' : 'Double beds'}</option>
+                    <option value="lits individuels">${currentLang === 'fr' ? 'Lits individuels' : 'Single beds'}</option>
+                </select>
                 <button class="btn btn-danger btn-small" onclick="this.parentElement.remove()">🗑️</button>
             `;
             container.appendChild(div);
@@ -1458,9 +1609,14 @@
                                 if (room.genderPreference === 'female_only') prefLabel = ' 🚺';
                                 else if (room.genderPreference === 'male_only') prefLabel = ' 🚹';
                                 
+                                let bedTypeLabel = '';
+                                if (room.type === 'lits doubles' || room.type === 'lits individuels') {
+                                    bedTypeLabel = ` - ${room.type}`;
+                                }
+                                
                                 return `
                                 <option value="${room.id}">
-                                    ${t('room')}${room.id} (${room.type}) - ${room.capacity - room.occupants.length} ${t('placesRemaining')}${prefLabel}
+                                    ${t('room')}${room.id}${bedTypeLabel} - ${room.capacity - room.occupants.length} ${t('placesRemaining')}${prefLabel}
                                 </option>
                             `}).join('')}
                         </select>
@@ -1536,7 +1692,10 @@
                                     <div class="room-header">
                                         <div>
                                             <div class="room-title">${t('room')}${room.id}</div>
-                                            <div style="font-size: 0.9rem; color: #666;">${room.occupants.length} / ${room.capacity} ${t('people')}</div>
+                                            <div style="font-size: 0.85rem; color: #666;">
+                                                ${room.occupants.length} / ${room.capacity} ${t('people')}
+                                                ${room.type && (room.type === 'lits doubles' || room.type === 'lits individuels') ? `<br><span style="font-size: 0.8rem; color: #888;">🛏️ ${room.type}</span>` : ''}
+                                            </div>
                                         </div>
                                         <div style="display: flex; gap: 5px; flex-direction: column;">
                                             ${genderBadge}
