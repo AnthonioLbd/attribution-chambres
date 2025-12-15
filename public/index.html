@@ -1487,7 +1487,25 @@
                 grouped[room.type].push(room);
             });
 
-            const typeOrder = ['2 lits', '6 lits', '5 lits', '3 lits'];
+            // Créer un ordre dynamique basé sur les types existants
+            const typeOrder = [];
+            // D'abord les types avec capacité numérique (2 lits, 3 lits, etc.)
+            Object.keys(grouped).filter(type => /^\d+ lits$/.test(type)).sort((a, b) => {
+                const numA = parseInt(a);
+                const numB = parseInt(b);
+                return numA - numB;
+            }).forEach(type => typeOrder.push(type));
+            
+            // Ensuite les types de lits (doubles, individuels)
+            if (grouped['lits doubles']) typeOrder.push('lits doubles');
+            if (grouped['lits individuels']) typeOrder.push('lits individuels');
+            
+            // Enfin tous les autres types
+            Object.keys(grouped).forEach(type => {
+                if (!typeOrder.includes(type)) {
+                    typeOrder.push(type);
+                }
+            });
 
             const capacityWarning = appData.participants.length > appData.totalCapacity 
                 ? `<div class="alert alert-warning">
