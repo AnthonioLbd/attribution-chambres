@@ -576,6 +576,10 @@
     </div>
 
     <script>
+        // ====================================================================
+        // GESTION DES TRADUCTIONS ET LANGUE
+        // ====================================================================
+
         let appData = { rooms: [], participants: [], registrationCodes: {}, totalCapacity: 0 };
         let isAdmin = false;
         let roomToModify = null;
@@ -695,6 +699,34 @@
             renderApp();
         }
 
+        // ====================================================================
+        // GESTION DES CHAMBRES - Obtenir les informations
+        // ====================================================================
+        
+        /**
+         * Récupère les informations d'une chambre par son ID
+         * @param {string} roomId - L'ID de la chambre
+         * @returns {Object|null} - L'objet chambre ou null si non trouvé
+         */
+        function getRoomById(roomId) {
+            return appData.rooms.find(r => r.id === roomId) || null;
+        }
+        
+        /**
+         * Vérifie si une chambre a déjà une préférence de genre définie
+         * (c'est-à-dire qu'elle a au moins un occupant)
+         * @param {string} roomId - L'ID de la chambre
+         * @returns {boolean} - true si la chambre a une préférence figée
+         */
+        function hasLockedGenderPreference(roomId) {
+            const room = getRoomById(roomId);
+            return room && room.occupants && room.occupants.length > 0;
+        }
+
+        // ====================================================================
+        // CHARGEMENT DES DONNÉES DEPUIS LE SERVEUR
+        // ====================================================================
+
         // Load data
         async function loadData() {
             try {
@@ -706,7 +738,134 @@
             }
         }
 
+        // ====================================================================
+        // INSCRIPTION - Gestion de la sélection de chambre
+        // ====================================================================
+        
+        /**
+         * Met à jour l'affichage de la préférence de genre selon la chambre sélectionnée
+         * Si la chambre a déjà des occupants, fige la préférence sur celle existante
+         */
+        function updateGenderPreferenceDisplay() {
+            const roomSelect = document.getElementById('roomSelect');
+            if (!roomSelect) return;
+            
+            const selectedRoomId = roomSelect.value;
+            if (!selectedRoomId) {
+                // Aucune chambre sélectionnée - affichage normal
+                showDefaultGenderPreference();
+                return;
+            }
+            
+            const room = getRoomById(selectedRoomId);
+            if (!room) return;
+            
+            // Si la chambre a déjà des occupants, figer la préférence
+            if (room.occupants && room.occupants.length > 0) {
+                showLockedGenderPreference(room.genderPreference);
+            } else {
+                // Chambre vide - l'utilisateur peut choisir
+                showDefaultGenderPreference();
+            }
+        }
+        
+        /**
+         * Affiche l'interface de préférence normale (chambre vide)
+         */
+        function showDefaultGenderPreference() {
+            const container = document.querySelector('.gender-preference');
+            const infoBox = document.querySelector('.info-box');
+            
+            if (container) {
+                // Réactiver tous les boutons radio
+                container.querySelectorAll('input[type="radio"]').forEach(radio => {
+                    radio.disabled = false;
+                });
+                // Sélectionner "mixte" par défaut
+                const mixedRadio = document.getElementById('mixed');
+                if (mixedRadio) mixedRadio.checked = true;
+            }
+            
+            if (infoBox) {
+                infoBox.innerHTML = `ℹ️ ${t('preferenceInfo')}`;
+                infoBox.style.background = '#fef3c7';
+                infoBox.style.borderColor = '#fbbf24';
+                infoBox.style.color = '#92400e';
+            }
+        }
+        
+        /**
+         * Affiche la préférence figée (chambre avec occupants)
+         * @param {string} preference - La préférence de genre ('mixed', 'female_only', 'male_only')
+         */
+        function showLockedGenderPreference(preference) {
+            const container = document.querySelector('.gender-preference');
+            const infoBox = document.querySelector('.info-box');
+            
+            if (container) {
+                // Désactiver tous les boutons radio
+                container.querySelectorAll('input[type="radio"]').forEach(radio => {
+                    radio.disabled = true;
+                });
+                
+                // Sélectionner et forcer la préférence existante
+                let radioToCheck = null;
+                if (preference === 'female_only') {
+                    radioToCheck = document.getElementById('femaleOnly');
+                } else if (preference === 'male_only') {
+                    radioToCheck = document.getElementById('maleOnly');
+                } else {
+                    radioToCheck = document.getElementById('mixed');
+                }
+                
+                if (radioToCheck) {
+                    radioToCheck.checked = true;
+                }
+            }
+            
+            if (infoBox) {
+                let message = '';
+                if (preference === 'female_only') {
+                    message = currentLang === 'fr' 
+                        ? '⚠️ Les membres de cette chambre ont demandé une chambre <strong>femmes uniquement</strong>. Merci de respecter ce choix. Prenez contact avec un organisateur s\'il n\'y a pas d\'autres options.'
+                        : '⚠️ The members of this room requested a <strong>females only</strong> room. Please respect this choice. Contact an organizer if there are no other options.';
+                } else if (preference === 'male_only') {
+                    message = currentLang === 'fr'
+                        ? '⚠️ Les membres de cette chambre ont demandé une chambre <strong>hommes uniquement</strong>. Merci de respecter ce choix. Prenez contact avec un organisateur s\'il n\'y a pas d\'autres options.'
+                        : '⚠️ The members of this room requested a <strong>males only</strong> room. Please respect this choice. Contact an organizer if there are no other options.';
+                } else {
+                    message = currentLang === 'fr'
+                        ? 'ℹ️ Cette chambre est configurée en <strong>mixte</strong>.'
+                        : 'ℹ️ This room is configured as <strong>mixed</strong>.';
+                }
+                
+                infoBox.innerHTML = message;
+                // Style d'avertissement pour les préférences figées non-mixtes
+                if (preference !== 'mixed') {
+                    infoBox.style.background = '#fee2e2';
+                    infoBox.style.borderColor = '#ef4444';
+                    infoBox.style.color = '#991b1b';
+                } else {
+                    infoBox.style.background = '#dbeafe';
+                    infoBox.style.borderColor = '#3b82f6';
+                    infoBox.style.color = '#1e40af';
+                }
+            }
+        }
+
+        // ====================================================================
+        // INSCRIPTION - Attribution d'un groupe à une chambre
+        // ====================================================================
+
         // Assign group
+        // ====================================================================
+        // INSCRIPTION - Attribution d'un groupe à une chambre
+        // ====================================================================
+        
+        /**
+         * Assigne un groupe de participants à une chambre sélectionnée
+         * Envoie une requête au serveur pour enregistrer l'inscription
+         */
         async function assignGroup() {
             const roomId = document.getElementById('roomSelect').value;
             if (!roomId) {
@@ -748,7 +907,15 @@
             }
         }
 
-        // Modification
+        // ====================================================================
+        // MODIFICATION D'INSCRIPTION - Supprimer un groupe d'une chambre
+        // ====================================================================
+
+        /**
+         * Initie le processus de modification d'une inscription
+         * Affiche le modal pour demander le code de modification
+         * @param {string} roomId - L'ID de la chambre à modifier
+         */
         async function initiateModification(roomId) {
             roomToModify = roomId;
             showModal('modificationModal');
@@ -802,7 +969,14 @@
             }
         }
 
-        // Admin functions
+        // ====================================================================
+        // ADMINISTRATION - Connexion et gestion du mode admin
+        // ====================================================================
+
+        /**
+         * Active ou désactive le mode administrateur
+         * Affiche le modal de connexion si l'utilisateur n'est pas encore admin
+         */
         async function toggleAdminMode() {
             if (isAdmin) {
                 isAdmin = false;
@@ -823,6 +997,15 @@
             }
         }
 
+        // ====================================================================
+        // ADMIN - Retirer un occupant d'une chambre
+        // ====================================================================
+        
+        /**
+         * Retire un occupant spécifique d'une chambre (action admin)
+         * @param {string} roomId - L'ID de la chambre
+         * @param {string} occupant - Le nom de l'occupant à retirer
+         */
         async function removeOccupant(roomId, occupant) {
             if (!confirm(currentLang === 'fr' ? `Retirer ${occupant} de cette chambre ?` : `Remove ${occupant} from this room?`)) return;
 
@@ -873,6 +1056,14 @@
             }
         }
 
+        // ====================================================================
+        // ADMIN - Import de participants depuis fichier CSV/Excel
+        // ====================================================================
+        
+        /**
+         * Gère l'upload d'un fichier CSV/Excel pour importer des participants
+         * @param {Event} event - L'événement de changement de fichier
+         */
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -921,6 +1112,13 @@
             reader.readAsText(file);
         }
 
+        // ====================================================================
+        // ADMIN - Export des résultats en CSV
+        // ====================================================================
+        
+        /**
+         * Exporte l'attribution des chambres dans un fichier CSV
+         */
         function exportResults() {
             let csv = 'Chambre,Type,Capacité,Occupants,Femmes Seulement,Préférence\n';
             appData.rooms.forEach(room => {
@@ -935,7 +1133,14 @@
             a.click();
         }
 
-        // UI helpers
+        // ====================================================================
+        // UI - Gestion des modals (fenêtres popup)
+        // ====================================================================
+        
+        /**
+         * Affiche un modal par son ID
+         * @param {string} id - L'ID du modal à afficher
+         */
         function showModal(id) {
             document.getElementById(id).classList.add('active');
         }
@@ -944,6 +1149,13 @@
             document.getElementById(id).classList.remove('active');
         }
 
+        // ====================================================================
+        // UI - Gestion des membres d'un groupe lors de l'inscription
+        // ====================================================================
+        
+        /**
+         * Ajoute un nouveau champ de sélection de membre au formulaire
+         */
         function addMemberInput() {
             const container = document.getElementById('memberInputs');
             const div = document.createElement('div');
@@ -965,6 +1177,14 @@
             updateMemberSelects();
         }
 
+        // ====================================================================
+        // PARTICIPANTS - Obtenir la liste des participants disponibles
+        // ====================================================================
+        
+        /**
+         * Retourne la liste des participants qui ne sont pas encore assignés à une chambre
+         * @returns {Array<string>} - Liste des noms de participants disponibles
+         */
         function getAvailableParticipants() {
             const assignedParticipants = new Set();
             appData.rooms.forEach(room => {
@@ -992,7 +1212,13 @@
             });
         }
 
-        // Admin participant management
+        // ====================================================================
+        // ADMIN - Gestion de la liste des participants
+        // ====================================================================
+        
+        /**
+         * Ajoute un nouveau participant à la liste (action admin)
+         */
         function addParticipant() {
             const name = prompt(currentLang === 'fr' ? 'Nom du nouveau participant :' : 'New participant name:');
             if (!name || !name.trim()) return;
@@ -1186,7 +1412,13 @@
             }
         }
 
-        // Room configuration
+        // ====================================================================
+        // ADMIN - Configuration des chambres
+        // ====================================================================
+        
+        /**
+         * Affiche le modal de configuration des chambres
+         */
         function showRoomConfig() {
             showModal('roomConfigModal');
         }
@@ -1262,6 +1494,15 @@
             }
         }
 
+        // ====================================================================
+        // ADMIN - Génération du HTML de configuration des chambres
+        // ====================================================================
+        
+        /**
+         * Génère le contenu HTML du modal de configuration des chambres
+         * Inclut : état actuel, ajout rapide, modification manuelle
+         * @returns {string} - Le HTML généré
+         */
         function generateRoomConfigHTML() {
             const grouped = {};
             appData.rooms.forEach(room => {
@@ -1347,6 +1588,13 @@
             return html;
         }
 
+        // ====================================================================
+        // ADMIN - Ajout rapide de groupes de chambres
+        // ====================================================================
+        
+        /**
+         * Ajoute une ligne dans l'interface d'ajout rapide de chambres
+         */
         function addQuickAddRow() {
             const container = document.getElementById('quickAddContainer');
             const div = document.createElement('div');
@@ -1377,6 +1625,14 @@
             }
         }
 
+        // ====================================================================
+        // ADMIN - Génération des chambres avec numérotation provisoire
+        // ====================================================================
+        
+        /**
+         * Génère les nouvelles chambres avec numérotation PROV-X
+         * selon les paramètres définis dans l'interface d'ajout rapide
+         */
         function quickAddRooms() {
             const rows = document.querySelectorAll('.quick-add-row');
             let newRooms = [];
@@ -1466,7 +1722,14 @@
             container.appendChild(div);
         }
 
-        // Render
+        // ====================================================================
+        // RENDU PRINCIPAL DE L'APPLICATION
+        // ====================================================================
+        
+        /**
+         * Fonction principale qui génère et affiche toute l'interface utilisateur
+         * Appelée après chaque modification de données pour rafraîchir l'affichage
+         */
         function renderApp() {
             const totalOccupied = appData.rooms.reduce((sum, r) => sum + r.occupants.length, 0);
             const availableRooms = appData.rooms.filter(r => r.occupants.length < r.capacity);
@@ -1613,7 +1876,7 @@
                     
                     <div class="form-group">
                         <label>${t('selectRoom')}</label>
-                        <select id="roomSelect">
+                        <select id="roomSelect" onchange="updateGenderPreferenceDisplay()">
                             <option value="">${t('chooseRoom')}</option>
                             ${availableRooms.sort((a, b) => {
                                 const aIndex = roomOrder.indexOf(a.id);
