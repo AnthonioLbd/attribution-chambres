@@ -682,12 +682,30 @@
                 modifyInscription: 'Modify your registration',
                 enterCode: 'Enter the code received during your registration.',
                 codeExample: 'CODE (e.g.: AB12CD)',
-                confirm: 'Confirm'
+                confirm: 'Confirm',
+                doubleBeds: 'double beds',
+                singleBeds: 'single beds'
             }
         };
 
         function t(key) {
             return translations[currentLang][key] || key;
+        }
+        
+        /**
+         * Traduit le type de lit selon la langue actuelle
+         * @param {string} bedType - Le type de lit en français
+         * @returns {string} - Le type traduit
+         */
+        function translateBedType(bedType) {
+            if (!bedType) return '';
+            
+            if (currentLang === 'en') {
+                if (bedType === 'lits doubles') return t('doubleBeds');
+                if (bedType === 'lits individuels') return t('singleBeds');
+            }
+            
+            return bedType;
         }
 
         function switchLanguage(lang) {
@@ -1890,14 +1908,20 @@
                                 if (room.genderPreference === 'female_only') prefLabel = ' 🚺';
                                 else if (room.genderPreference === 'male_only') prefLabel = ' 🚹';
                                 
+                                // Calculer le nombre de places disponibles
+                                const availablePlaces = room.capacity - room.occupants.length;
+                                
+                                // Préparer le label du type de lit
                                 let bedTypeLabel = '';
                                 if (room.type === 'lits doubles' || room.type === 'lits individuels') {
-                                    bedTypeLabel = ` - ${room.type}`;
+                                    const translatedType = translateBedType(room.type);
+                                    bedTypeLabel = ` - ${translatedType}`;
                                 }
                                 
+                                // Format: Chambre n°XX - 2/6 places restantes - type
                                 return `
                                 <option value="${room.id}">
-                                    ${t('room')}${room.id}${bedTypeLabel} - ${room.capacity - room.occupants.length} ${t('placesRemaining')}${prefLabel}
+                                    ${t('room')}${room.id} - ${availablePlaces}/${room.capacity} ${t('placesRemaining')}${bedTypeLabel}${prefLabel}
                                 </option>
                             `}).join('')}
                         </select>
@@ -1975,7 +1999,7 @@
                                             <div class="room-title">${t('room')}${room.id}</div>
                                             <div style="font-size: 0.85rem; color: #666;">
                                                 ${room.occupants.length} / ${room.capacity} ${t('people')}
-                                                ${room.type && (room.type === 'lits doubles' || room.type === 'lits individuels') ? `<br><span style="font-size: 0.8rem; color: #888;">🛏️ ${room.type}</span>` : ''}
+                                                ${room.type && (room.type === 'lits doubles' || room.type === 'lits individuels') ? `<br><span style="font-size: 0.8rem; color: #888;">🛏️ ${translateBedType(room.type)}</span>` : ''}
                                             </div>
                                         </div>
                                         <div style="display: flex; gap: 5px; flex-direction: column;">
