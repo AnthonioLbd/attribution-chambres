@@ -1441,10 +1441,16 @@
             showModal('roomConfigModal');
         }
 
+        /**
+         * Sauvegarde la configuration des chambres après validation
+         * Gère la préservation des occupants lors des changements de numéro
+         * Valide que les nouvelles capacités sont suffisantes pour les occupants existants
+         */
         function saveRoomConfig() {
             const inputs = document.querySelectorAll('.room-config-row');
             const rooms = [];
             const roomIds = new Set();
+            const warnings = [];
 
             for (let input of inputs) {
                 const id = input.querySelector('.room-id').value.trim();
@@ -1477,23 +1483,110 @@
                 return;
             }
 
-            if (!confirm(currentLang === 'fr'
-                ? `⚠️ Vous allez remplacer la configuration des chambres.\n\n${rooms.length} chambres, capacité totale: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} lits.\n\nContinuer ?`
-                : `⚠️ You will replace the room configuration.\n\n${rooms.length} rooms, total capacity: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} beds.\n\nContinue?`)) {
+            // ====================================================================
+            // VALIDATION : Vérifier que les nouvelles capacités sont suffisantes
+            // pour les occupants existants et tracker les changements de numéros
+            // ====================================================================
+            
+            // Créer un mapping des anciennes chambres par leur position dans le DOM
+            const oldRooms = appData.rooms;
+            const roomInputs = document.querySelectorAll('.room-config-row');
+            const roomChanges = []; // Pour tracker les changements de numéros de chambres
+            
+            roomInputs.forEach((input, index) => {
+                if (index < oldRooms.length) {
+                    const oldRoom = oldRooms[index];
+                    const newRoom = rooms[index];
+                    
+                    // Tracker le changement de numéro si nécessaire
+                    if (oldRoom.id !== newRoom.id && oldRoom.occupants && oldRoom.occupants.length > 0) {
+                        roomChanges.push({
+                            oldId: oldRoom.id,
+                            newId: newRoom.id,
+                            occupants: oldRoom.occupants,
+                            genderPreference: oldRoom.genderPreference,
+                            userPreference: oldRoom.userPreference
+                        });
+                    }
+                    
+                    // Vérifier si la capacité a changé
+                    if (oldRoom.capacity !== newRoom.capacity) {
+                        const currentOccupants = oldRoom.occupants.length;
+                        
+                        if (newRoom.capacity < currentOccupants) {
+                            alert(currentLang === 'fr'
+                                ? `❌ ERREUR : La chambre "${oldRoom.id}" a ${currentOccupants} occupant(s).\n\nVous ne pouvez pas réduire la capacité à ${newRoom.capacity} lit(s).\n\nCapacité minimale requise : ${currentOccupants} lit(s).`
+                                : `❌ ERROR: Room "${oldRoom.id}" has ${currentOccupants} occupant(s).\n\nYou cannot reduce the capacity to ${newRoom.capacity} bed(s).\n\nMinimum required capacity: ${currentOccupants} bed(s).`);
+                            return;
+                        }
+                        
+                        if (currentOccupants > 0) {
+                            const roomLabel = oldRoom.id !== newRoom.id ? `${oldRoom.id} → ${newRoom.id}` : oldRoom.id;
+                            warnings.push({
+                                roomLabel: roomLabel,
+                                oldCapacity: oldRoom.capacity,
+                                newCapacity: newRoom.capacity,
+                                occupants: oldRoom.occupants
+                            });
+                        }
+                    }
+                }
+            });
+
+            // Afficher les avertissements sur les changements de capacité
+            if (warnings.length > 0) {
+                let warningMessage = currentLang === 'fr'
+                    ? '⚠️ ATTENTION : Changements de capacité détectés :\n\n'
+                    : '⚠️ WARNING: Capacity changes detected:\n\n';
+                
+                warnings.forEach(w => {
+                    warningMessage += currentLang === 'fr'
+                        ? `• Chambre ${w.roomLabel} : ${w.oldCapacity} → ${w.newCapacity} lits\n  ${w.occupants.length} occupant(s) : ${w.occupants.join(', ')}\n\n`
+                        : `• Room ${w.roomLabel}: ${w.oldCapacity} → ${w.newCapacity} beds\n  ${w.occupants.length} occupant(s): ${w.occupants.join(', ')}\n\n`;
+                });
+                
+                warningMessage += (currentLang === 'fr'
+                    ? '⚠️ N\'oubliez pas de prévenir les participants concernés de ces changements.\n\nContinuer ?'
+                    : '⚠️ Don\'t forget to inform the affected participants about these changes.\n\nContinue?');
+                
+                if (!confirm(warningMessage)) {
+                    return;
+                }
+            }
+
+            // Message de confirmation final
+            let confirmMsg = currentLang === 'fr'
+                ? `⚠️ Vous allez remplacer la configuration des chambres.\n\n${rooms.length} chambres, capacité totale: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} lits.`
+                : `⚠️ You will replace the room configuration.\n\n${rooms.length} rooms, total capacity: ${rooms.reduce((sum, r) => sum + r.capacity, 0)} beds.`;
+            
+            if (roomChanges.length > 0) {
+                confirmMsg += currentLang === 'fr'
+                    ? `\n\n📋 ${roomChanges.length} chambre(s) avec changement de numéro :\n${roomChanges.map(c => `  • ${c.oldId} → ${c.newId} (${c.occupants.length} occupant(s))`).join('\n')}\n\nLes occupants seront maintenus dans leurs chambres.`
+                    : `\n\n📋 ${roomChanges.length} room(s) with number changes:\n${roomChanges.map(c => `  • ${c.oldId} → ${c.newId} (${c.occupants.length} occupant(s))`).join('\n')}\n\nOccupants will be kept in their rooms.`;
+            }
+            
+            confirmMsg += '\n\n' + (currentLang === 'fr' ? 'Continuer ?' : 'Continue?');
+            
+            if (!confirm(confirmMsg)) {
                 return;
             }
 
-            updateRoomsInDB(rooms);
+            updateRoomsInDB(rooms, roomChanges);
         }
 
-        async function updateRoomsInDB(rooms) {
+        /**
+         * Envoie la nouvelle configuration des chambres au serveur
+         * @param {Array} rooms - Liste des nouvelles chambres
+         * @param {Array} roomChanges - Liste des changements de numéros (optionnel)
+         */
+        async function updateRoomsInDB(rooms, roomChanges = []) {
             const password = prompt(currentLang === 'fr' ? 'Code admin :' : 'Admin code:');
             
             try {
                 const response = await fetch('/api/admin/update-rooms', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rooms, password })
+                    body: JSON.stringify({ rooms, roomChanges, password })
                 });
 
                 const result = await response.json();
@@ -1506,7 +1599,18 @@
                 appData = result.data;
                 hideModal('roomConfigModal');
                 renderApp();
-                alert(currentLang === 'fr' ? '✅ Configuration des chambres mise à jour !' : '✅ Room configuration updated!');
+                
+                let successMsg = currentLang === 'fr' 
+                    ? '✅ Configuration des chambres mise à jour !' 
+                    : '✅ Room configuration updated!';
+                
+                if (roomChanges.length > 0) {
+                    successMsg += currentLang === 'fr'
+                        ? `\n\n✓ ${roomChanges.length} chambre(s) renumérée(s) avec leurs occupants préservés.`
+                        : `\n\n✓ ${roomChanges.length} room(s) renumbered with occupants preserved.`;
+                }
+                
+                alert(successMsg);
             } catch (error) {
                 alert('Erreur : ' + error.message);
             }
