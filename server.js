@@ -4,17 +4,28 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = 3000;
 
-// ⚠️ REMPLACEZ CES VALEURS PAR VOS CLÉS SUPABASE
+// ====================================================================
+// CONFIGURATION SUPABASE
+// ====================================================================
 const SUPABASE_URL = 'https://bpfugczlnhnncpaxhhwv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZnVnY3psbmhubmNwYXhoaHd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0MDMxMzEsImV4cCI6MjA4MDk3OTEzMX0.wZEW2XEOJbEfNrVDZ2fq5qHkmIrA8FQIP_wuB-9w2Yw';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Middleware
+// ====================================================================
+// MIDDLEWARE
+// ====================================================================
 app.use(express.json());
 app.use(express.static('public'));
 
-// Helper functions
+// ====================================================================
+// FONCTIONS UTILITAIRES
+// ====================================================================
+
+/**
+ * Récupère toutes les données (chambres, occupants, participants)
+ * et les structure pour le frontend
+ */
 async function getAllData() {
     try {
         const { data: rooms, error: roomsError } = await supabase
@@ -72,7 +83,14 @@ async function getAllData() {
     }
 }
 
-// API Routes
+// ====================================================================
+// ROUTES API - DONNÉES
+// ====================================================================
+
+/**
+ * GET /api/data
+ * Récupère toutes les données de l'application
+ */
 app.get('/api/data', async (req, res) => {
     try {
         const data = await getAllData();
@@ -82,6 +100,14 @@ app.get('/api/data', async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROUTES API - INSCRIPTION
+// ====================================================================
+
+/**
+ * POST /api/assign
+ * Assigne un groupe de participants à une chambre
+ */
 app.post('/api/assign', async (req, res) => {
     try {
         const { roomId, members, genderPreference } = req.body;
@@ -145,6 +171,14 @@ app.post('/api/assign', async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROUTES API - MODIFICATION D'INSCRIPTION
+// ====================================================================
+
+/**
+ * POST /api/modify
+ * Permet à un utilisateur de modifier son inscription avec un code
+ */
 app.post('/api/modify', async (req, res) => {
     try {
         const { roomId, code } = req.body;
@@ -194,6 +228,14 @@ app.post('/api/modify', async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROUTES API - ADMINISTRATION - GESTION DES OCCUPANTS
+// ====================================================================
+
+/**
+ * POST /api/admin/remove
+ * Retire un occupant spécifique d'une chambre (admin)
+ */
 app.post('/api/admin/remove', async (req, res) => {
     try {
         const { roomId, occupant, password } = req.body;
@@ -234,6 +276,44 @@ app.post('/api/admin/remove', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/admin/clear-room
+ * Vide complètement une chambre (admin)
+ */
+app.post('/api/admin/clear-room', async (req, res) => {
+    try {
+        const { roomId, password } = req.body;
+        
+        if (password !== 'adminlvp25') {
+            return res.status(401).json({ error: 'Code admin incorrect' });
+        }
+
+        // Delete all occupants from this room
+        await supabase
+            .from('occupants')
+            .delete()
+            .eq('room_id', roomId);
+
+        // Reset gender preference
+        await supabase
+            .from('rooms')
+            .update({ 
+                gender_preference: 'mixed',
+                user_preference: false 
+            })
+            .eq('id', roomId);
+
+        const data = await getAllData();
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /api/admin/toggle-female
+ * Active/désactive le mode "femmes uniquement" pour une chambre (admin)
+ */
 app.post('/api/admin/toggle-female', async (req, res) => {
     try {
         const { roomId, password } = req.body;
@@ -262,6 +342,14 @@ app.post('/api/admin/toggle-female', async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROUTES API - ADMINISTRATION - GESTION DES PARTICIPANTS
+// ====================================================================
+
+/**
+ * POST /api/admin/upload-participants
+ * Importe une liste de participants depuis un fichier CSV (admin)
+ */
 app.post('/api/admin/upload-participants', async (req, res) => {
     try {
         const { participants, password } = req.body;
@@ -283,6 +371,10 @@ app.post('/api/admin/upload-participants', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/admin/update-participants
+ * Met à jour la liste complète des participants (admin)
+ */
 app.post('/api/admin/update-participants', async (req, res) => {
     try {
         const { participants, password } = req.body;
@@ -353,6 +445,10 @@ app.post('/api/admin/update-participants', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/admin/edit-participant
+ * Modifie le nom d'un participant (admin)
+ */
 app.post('/api/admin/edit-participant', async (req, res) => {
     try {
         const { oldName, newName, password } = req.body;
@@ -380,6 +476,10 @@ app.post('/api/admin/edit-participant', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/admin/delete-participant
+ * Supprime un participant de la liste (admin)
+ */
 app.post('/api/admin/delete-participant', async (req, res) => {
     try {
         const { name, password } = req.body;
@@ -432,36 +532,10 @@ app.post('/api/admin/delete-participant', async (req, res) => {
     }
 });
 
-app.post('/api/admin/clear-room', async (req, res) => {
-    try {
-        const { roomId, password } = req.body;
-        
-        if (password !== 'adminlvp25') {
-            return res.status(401).json({ error: 'Code admin incorrect' });
-        }
-
-        // Delete all occupants from this room
-        await supabase
-            .from('occupants')
-            .delete()
-            .eq('room_id', roomId);
-
-        // Reset gender preference
-        await supabase
-            .from('rooms')
-            .update({ 
-                gender_preference: 'mixed',
-                user_preference: false 
-            })
-            .eq('id', roomId);
-
-        const data = await getAllData();
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
+/**
+ * POST /api/admin/clear-participants
+ * Efface toute la liste des participants (admin)
+ */
 app.post('/api/admin/clear-participants', async (req, res) => {
     try {
         const { password } = req.body;
@@ -479,21 +553,61 @@ app.post('/api/admin/clear-participants', async (req, res) => {
     }
 });
 
+// ====================================================================
+// ROUTES API - ADMINISTRATION - GESTION DES CHAMBRES
+// ====================================================================
+
+/**
+ * POST /api/admin/update-rooms
+ * Met à jour la configuration des chambres (admin)
+ * 
+ * IMPORTANT : Cette fonction préserve les occupants lors des changements
+ * de numéros de chambres grâce au paramètre roomChanges
+ * 
+ * @param {Array} rooms - Nouvelle configuration des chambres
+ * @param {Array} roomChanges - Mapping des changements de numéros (optionnel)
+ *   Structure: [{ oldId, newId, occupants, genderPreference, userPreference }]
+ */
 app.post('/api/admin/update-rooms', async (req, res) => {
     try {
-        const { rooms, password } = req.body;
+        const { rooms, roomChanges, password } = req.body;
         
         if (password !== 'adminlvp25') {
             return res.status(401).json({ error: 'Code admin incorrect' });
         }
 
-        // Delete all occupants first (they will be orphaned anyway)
-        await supabase.from('occupants').delete().neq('id', 0);
+        // ====================================================================
+        // ÉTAPE 1 : Préserver les occupants lors des changements de numéros
+        // ====================================================================
+        // Si des chambres ont changé de numéro, mettre à jour les occupants
+        // AVANT de supprimer les chambres pour éviter les références orphelines
+        
+        if (roomChanges && roomChanges.length > 0) {
+            console.log('🔄 Changements de numéros détectés:', roomChanges.length);
+            
+            for (const change of roomChanges) {
+                console.log(`  Renommage: ${change.oldId} → ${change.newId} (${change.occupants.length} occupant(s))`);
+                
+                // Mettre à jour room_id pour tous les occupants de cette chambre
+                await supabase
+                    .from('occupants')
+                    .update({ room_id: change.newId })
+                    .eq('room_id', change.oldId);
+            }
+        }
 
-        // Delete all current rooms
+        // ====================================================================
+        // ÉTAPE 2 : Supprimer toutes les anciennes chambres
+        // ====================================================================
+        // Les occupants sont maintenant liés aux nouveaux IDs, donc ils ne
+        // seront pas affectés par la suppression des anciennes chambres
+        
         await supabase.from('rooms').delete().neq('id', '');
 
-        // Insert new rooms if any
+        // ====================================================================
+        // ÉTAPE 3 : Créer les nouvelles chambres
+        // ====================================================================
+        
         if (rooms.length > 0) {
             const roomsToInsert = rooms.map(room => ({
                 id: room.id,
@@ -510,14 +624,52 @@ app.post('/api/admin/update-rooms', async (req, res) => {
 
             if (insertError) throw insertError;
         }
+        
+        // ====================================================================
+        // ÉTAPE 4 : Restaurer les préférences de genre
+        // ====================================================================
+        // Pour les chambres qui ont changé de numéro, restaurer leur
+        // préférence de genre (femmes uniquement, hommes uniquement, etc.)
+        
+        if (roomChanges && roomChanges.length > 0) {
+            for (const change of roomChanges) {
+                if (change.genderPreference && change.genderPreference !== 'mixed') {
+                    await supabase
+                        .from('rooms')
+                        .update({ 
+                            gender_preference: change.genderPreference,
+                            user_preference: change.userPreference || false
+                        })
+                        .eq('id', change.newId);
+                    
+                    console.log(`  ✓ Préférence restaurée pour ${change.newId}: ${change.genderPreference}`);
+                }
+            }
+        }
 
         const data = await getAllData();
+        
+        console.log('✅ Configuration des chambres mise à jour avec succès');
+        if (roomChanges && roomChanges.length > 0) {
+            console.log(`   ${roomChanges.length} chambre(s) renumérée(s) avec occupants préservés`);
+        }
+        
         res.json({ success: true, data });
     } catch (error) {
+        console.error('❌ Erreur lors de la mise à jour des chambres:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
+// ====================================================================
+// ROUTES API - ADMINISTRATION - RÉINITIALISATION
+// ====================================================================
+
+/**
+ * POST /api/admin/reset
+ * Réinitialise complètement l'application (admin)
+ * Supprime tous les occupants et participants, réinitialise les chambres
+ */
 app.post('/api/admin/reset', async (req, res) => {
     try {
         const { password } = req.body;
@@ -546,7 +698,14 @@ app.post('/api/admin/reset', async (req, res) => {
     }
 });
 
+// ====================================================================
+// DÉMARRAGE DU SERVEUR
+// ====================================================================
+
 app.listen(PORT, () => {
-    console.log(`Serveur démarré sur le port ${PORT}`);
-    console.log(`Supabase URL: ${SUPABASE_URL}`);
+    console.log('========================================');
+    console.log('🚀 Serveur démarré avec succès');
+    console.log(`📍 Port: ${PORT}`);
+    console.log(`🔗 Supabase URL: ${SUPABASE_URL}`);
+    console.log('========================================');
 });
