@@ -562,7 +562,8 @@ app.post('/api/admin/clear-participants', async (req, res) => {
  * Met à jour la configuration des chambres (admin)
  * 
  * IMPORTANT : Cette fonction préserve les occupants lors des changements
- * de numéros de chambres grâce au paramètre roomChanges
+ * de numéros de chambres en utilisant une approche de mise à jour plutôt
+ * que suppression/recréation
  * 
  * @param {Array} rooms - Nouvelle configuration des chambres
  * @param {Array} roomChanges - Mapping des changements de numéros (optionnel)
@@ -577,39 +578,124 @@ app.post('/api/admin/update-rooms', async (req, res) => {
         }
 
         // ====================================================================
-        // ÉTAPE 1 : Préserver les occupants lors des changements de numéros
+        // ÉTAPE 1 : Créer un mapping temporaire pour les changements de numéros
         // ====================================================================
-        // Si des chambres ont changé de numéro, mettre à jour les occupants
-        // AVANT de supprimer les chambres pour éviter les références orphelines
-        
+        const roomChangeMap = new Map();
         if (roomChanges && roomChanges.length > 0) {
             console.log('🔄 Changements de numéros détectés:', roomChanges.length);
-            
+            roomChanges.forEach(change => {
+                roomChangeMap.set(change.oldId, change);
+                console.log(`  Prévu: ${change.oldId} → ${change.newId} (${change.occupants.length} occupant(s))`);
+            });
+        }
+
+        // ====================================================================
+        // ÉTAPE 2 : Récupérer les chambres existantes
+        // ====================================================================
+        const { data: existingRooms } = await supabase
+            .from('rooms')
+            .select('*');
+
+        const existingRoomIds = new Set(existingRooms.map(r => r.id));
+        const newRoomIds = new Set(rooms.map(r => r.id));
+
+        // ====================================================================
+        // ÉTAPE 3 : Identifier les chambres à traiter
+        // ====================================================================
+        
+        // Chambres qui existent mais ne sont plus dans la nouvelle config
+        // ET qui ne sont pas renommées (pas dans oldId de roomChanges)
+        const roomsToDelete = existingRooms.filter(room => {
+            const isRenamed = roomChangeMap.has(room.id);
+            const existsInNewConfig = newRoomIds.has(room.id);
+            return !existsInNewConfig && !isRenamed;
+        });
+
+        // Nouvelles chambres qui n'existaient pas
+        const roomsToCreate = rooms.filter(room => {
+            // C'est une nouvelle chambre si:
+            // - Son ID n'existait pas avant
+            // - ET ce n'est pas le résultat d'un renommage (pas dans newId de roomChanges)
+            const isNewFromRename = Array.from(roomChangeMap.values()).some(c => c.newId === room.id);
+            return !existingRoomIds.has(room.id) && !isNewFromRename;
+        });
+
+        // Chambres à mettre à jour (existent déjà et sont dans la nouvelle config)
+        const roomsToUpdate = rooms.filter(room => existingRoomIds.has(room.id));
+
+        console.log(`📊 Analyse: ${roomsToDelete.length} à supprimer, ${roomsToCreate.length} à créer, ${roomsToUpdate.length} à mettre à jour`);
+
+        // ====================================================================
+        // ÉTAPE 4 : Traiter les changements de numéros EN PREMIER
+        // ====================================================================
+        if (roomChanges && roomChanges.length > 0) {
             for (const change of roomChanges) {
-                console.log(`  Renommage: ${change.oldId} → ${change.newId} (${change.occupants.length} occupant(s))`);
+                console.log(`🔄 Renommage: ${change.oldId} → ${change.newId}`);
                 
-                // Mettre à jour room_id pour tous les occupants de cette chambre
+                // 4.1 : Créer la nouvelle chambre avec le nouveau ID
+                const newRoom = rooms.find(r => r.id === change.newId);
+                if (newRoom) {
+                    await supabase
+                        .from('rooms')
+                        .insert({
+                            id: newRoom.id,
+                            capacity: newRoom.capacity,
+                            type: newRoom.type,
+                            is_female_only: false,
+                            gender_preference: change.genderPreference || 'mixed',
+                            user_preference: change.userPreference || false
+                        });
+                    console.log(`  ✓ Nouvelle chambre ${newRoom.id} créée`);
+                }
+                
+                // 4.2 : Migrer les occupants vers le nouveau ID
                 await supabase
                     .from('occupants')
                     .update({ room_id: change.newId })
                     .eq('room_id', change.oldId);
+                console.log(`  ✓ Occupants migrés vers ${change.newId}`);
+                
+                // 4.3 : Supprimer l'ancienne chambre (maintenant vide)
+                await supabase
+                    .from('rooms')
+                    .delete()
+                    .eq('id', change.oldId);
+                console.log(`  ✓ Ancienne chambre ${change.oldId} supprimée`);
             }
         }
 
         // ====================================================================
-        // ÉTAPE 2 : Supprimer toutes les anciennes chambres
+        // ÉTAPE 5 : Supprimer les chambres obsolètes (sans occupants ou vidées avant)
         // ====================================================================
-        // Les occupants sont maintenant liés aux nouveaux IDs, donc ils ne
-        // seront pas affectés par la suppression des anciennes chambres
-        
-        await supabase.from('rooms').delete().neq('id', '');
+        if (roomsToDelete.length > 0) {
+            for (const room of roomsToDelete) {
+                // Vérifier d'abord s'il y a des occupants
+                const { data: occupants } = await supabase
+                    .from('occupants')
+                    .select('id')
+                    .eq('room_id', room.id);
+                
+                if (occupants && occupants.length > 0) {
+                    console.log(`⚠️  Chambre ${room.id} a ${occupants.length} occupant(s) - suppression des occupants d'abord`);
+                    await supabase
+                        .from('occupants')
+                        .delete()
+                        .eq('room_id', room.id);
+                }
+                
+                await supabase
+                    .from('rooms')
+                    .delete()
+                    .eq('id', room.id);
+                console.log(`  🗑️  Chambre ${room.id} supprimée`);
+            }
+        }
 
         // ====================================================================
-        // ÉTAPE 3 : Créer les nouvelles chambres
+        // ÉTAPE 6 : Créer les nouvelles chambres
         // ====================================================================
-        
-        if (rooms.length > 0) {
-            const roomsToInsert = rooms.map(room => ({
+        if (roomsToCreate.length > 0) {
+            const roomsToInsert = roomsToCreate.map(room => ({
                 id: room.id,
                 capacity: room.capacity,
                 type: room.type,
@@ -622,29 +708,49 @@ app.post('/api/admin/update-rooms', async (req, res) => {
                 .from('rooms')
                 .insert(roomsToInsert);
 
-            if (insertError) throw insertError;
-        }
-        
-        // ====================================================================
-        // ÉTAPE 4 : Restaurer les préférences de genre
-        // ====================================================================
-        // Pour les chambres qui ont changé de numéro, restaurer leur
-        // préférence de genre (femmes uniquement, hommes uniquement, etc.)
-        
-        if (roomChanges && roomChanges.length > 0) {
-            for (const change of roomChanges) {
-                if (change.genderPreference && change.genderPreference !== 'mixed') {
-                    await supabase
-                        .from('rooms')
-                        .update({ 
-                            gender_preference: change.genderPreference,
-                            user_preference: change.userPreference || false
-                        })
-                        .eq('id', change.newId);
-                    
-                    console.log(`  ✓ Préférence restaurée pour ${change.newId}: ${change.genderPreference}`);
-                }
+            if (insertError) {
+                console.error('❌ Erreur création chambres:', insertError);
+                throw insertError;
             }
+            console.log(`  ➕ ${roomsToCreate.length} nouvelle(s) chambre(s) créée(s)`);
+        }
+
+        // ====================================================================
+        // ÉTAPE 7 : Mettre à jour les chambres existantes
+        // ====================================================================
+        if (roomsToUpdate.length > 0) {
+            for (const room of roomsToUpdate) {
+                // Récupérer la préférence de genre actuelle si la chambre a des occupants
+                const { data: occupants } = await supabase
+                    .from('occupants')
+                    .select('id')
+                    .eq('room_id', room.id);
+                
+                const { data: currentRoom } = await supabase
+                    .from('rooms')
+                    .select('gender_preference, user_preference')
+                    .eq('id', room.id)
+                    .single();
+                
+                // Conserver la préférence si la chambre a des occupants, sinon réinitialiser
+                const genderPreference = (occupants && occupants.length > 0) 
+                    ? (currentRoom?.gender_preference || 'mixed')
+                    : 'mixed';
+                const userPreference = (occupants && occupants.length > 0)
+                    ? (currentRoom?.user_preference || false)
+                    : false;
+                
+                await supabase
+                    .from('rooms')
+                    .update({
+                        capacity: room.capacity,
+                        type: room.type,
+                        gender_preference: genderPreference,
+                        user_preference: userPreference
+                    })
+                    .eq('id', room.id);
+            }
+            console.log(`  🔄 ${roomsToUpdate.length} chambre(s) mise(s) à jour`);
         }
 
         const data = await getAllData();
